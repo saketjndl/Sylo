@@ -6,13 +6,14 @@ current SDK configuration.
 
 from __future__ import annotations
 
-from luro.config import LuroConfig
-from luro.storage.base import LuroStorage
-from luro.storage.cloud_store import CloudStorage
-from luro.storage.local_store import LocalStorage
-from luro.storage.redis_store import RedisStorage
+from sylo.config import SyloConfig
+from sylo.storage.base import SyloStorage, LuroStorage
+from sylo.storage.cloud_store import CloudStorage
+from sylo.storage.local_store import LocalStorage
+from sylo.storage.redis_store import RedisStorage
 
 __all__ = [
+    "SyloStorage",
     "LuroStorage",
     "LocalStorage",
     "RedisStorage",
@@ -21,7 +22,7 @@ __all__ = [
 ]
 
 
-def get_storage(config: LuroConfig) -> LuroStorage:
+def get_storage(config: SyloConfig) -> SyloStorage:
     """Create the appropriate storage backend from config.
 
     Args:
@@ -41,7 +42,7 @@ def get_storage(config: LuroConfig) -> LuroStorage:
         if config.api_key is None:
             raise ValueError(
                 "Cloud storage requires an API key. "
-                "Set api_key in luro.init() or LURO_API_KEY env var."
+                "Set api_key in sylo.init() or SYLO_API_KEY env var."
             )
         return CloudStorage(
             api_key=config.api_key,

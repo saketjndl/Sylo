@@ -1,6 +1,6 @@
-"""Checkpoint engine — Luro's flagship feature.
+"""Checkpoint engine — Sylo's flagship feature.
 
-The @luro.step decorator saves the output of each agent step so
+The @sylo.step decorator saves the output of each agent step so
 that if the pipeline fails, it resumes from the last successful
 step instead of restarting from scratch.
 
@@ -23,17 +23,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from luro.config import get_config
-from luro.core.context import Context
-from luro.core.costs import estimate_cost, extract_token_usage
-from luro.models import (
+from sylo.config import get_config
+from sylo.core.context import Context
+from sylo.core.costs import estimate_cost, extract_token_usage
+from sylo.models import (
     AuditEvent,
     Checkpoint,
     CheckpointStatus,
     TokenUsage,
 )
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
 
 class StepResult:
@@ -69,9 +69,9 @@ def step(
     max_retries: int = 0,
     retry_delay: float = 1.0,
 ) -> Callable:
-    """Decorator that wraps an async function as a Luro pipeline step.
+    """Decorator that wraps an async function as a Sylo pipeline step.
 
-    The decorated function receives a `luro.Context` as its first argument.
+    The decorated function receives a `sylo.Context` as its first argument.
     The decorator handles:
     - Checking for an existing checkpoint (skip if found)
     - Executing the function and saving a new checkpoint
@@ -88,8 +88,8 @@ def step(
         Decorated async function.
 
     Example:
-        @luro.step("fetch-emails", max_retries=3, retry_delay=2.0)
-        async def fetch_emails(ctx: luro.Context) -> dict:
+        @sylo.step("fetch-emails", max_retries=3, retry_delay=2.0)
+        async def fetch_emails(ctx: sylo.Context) -> dict:
             result = await call_llm(...)
             return result
     """
@@ -98,7 +98,7 @@ def step(
         @functools.wraps(func)
         async def wrapper(ctx: Context, *args: Any, **kwargs: Any) -> Any:
             # Import here to avoid circular imports
-            from luro.core.pipeline import _current_pipeline
+            from sylo.core.pipeline import _current_pipeline
 
             pipeline = _current_pipeline.get(None)
             if pipeline is None:
@@ -183,14 +183,14 @@ def step(
 
             # Setup trust declarations for the step run
             ctx._current_step_name = name
-            ctx._trust_declarations = getattr(func, "_luro_trust_declarations", None)
+            ctx._trust_declarations = getattr(func, "_sylo_trust_declarations", getattr(func, "_luro_trust_declarations", None))
             ctx._permissions_used.clear()
             ctx._violations_attempted = 0
 
             config = get_config()
             if ctx._trust_declarations is None and config.is_production:
                 logger.warning(
-                    "⚠ Luro Trust: Step \"%s\" has no trust declaration. Running without enforcement.",
+                    "⚠ Sylo Trust: Step \"%s\" has no trust declaration. Running without enforcement.",
                     name,
                 )
 
@@ -255,7 +255,7 @@ def step(
                                 # Log least privilege warning in dev mode
                                 if config.is_development:
                                     logger.warning(
-                                        "⚠ Luro Trust: Step \"%s\" declared \"%s\" but never accessed it.\n"
+                                        "⚠ Sylo Trust: Step \"%s\" declared \"%s\" but never accessed it.\n"
                                         "  Consider removing unused permissions.",
                                         name,
                                         pattern,
@@ -400,9 +400,10 @@ def step(
             return result
 
         # Attach step metadata to the wrapper for introspection
-        wrapper._luro_step_name = name  # type: ignore[attr-defined]
-        wrapper._luro_max_retries = max_retries  # type: ignore[attr-defined]
-        wrapper._luro_retry_delay = retry_delay  # type: ignore[attr-defined]
+        wrapper._sylo_step_name = name  # type: ignore[attr-defined]
+        wrapper._luro_step_name = name  # backwards compat
+        wrapper._luro_max_retries = max_retries  # backwards compat
+        wrapper._luro_retry_delay = retry_delay  # backwards compat
 
         return wrapper
 

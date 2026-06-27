@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "luro-sdk"
+name = "sylo-sdk"
 version = "0.1.0"
 description = "Production operating layer for AI agent pipelines — checkpointing, permission enforcement, human approval gates, and audit logging."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "Luro", email = "team@luro.dev" },
+    { name = "Sylo", email = "team@sylo.dev" },
 ]
 keywords = ["ai", "agents", "llm", "checkpointing", "audit", "production"]
 classifiers = [
@@ -41,12 +41,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://luro.dev"
-Documentation = "https://docs.luro.dev"
-Repository = "https://github.com/luro-dev/luro"
+Homepage = "https://sylo.dev"
+Documentation = "https://docs.sylo.dev"
+Repository = "https://github.com/saketjndl/Sylo"
 
 [tool.hatch.build.targets.wheel]
-packages = ["luro"]
+packages = ["sylo"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

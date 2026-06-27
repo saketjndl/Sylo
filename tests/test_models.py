@@ -1,10 +1,10 @@
-"""Tests for Luro SDK Pydantic data models."""
+"""Tests for Sylo SDK Pydantic data models."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from luro.models import (
+from sylo.models import (
     AuditEvent,
     Checkpoint,
     CheckpointStatus,

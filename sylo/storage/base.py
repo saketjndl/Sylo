@@ -1,4 +1,4 @@
-"""Abstract storage interface for Luro SDK.
+"""Abstract storage interface for Sylo SDK.
 
 All storage backends (local, Redis, cloud) implement this interface.
 This ensures that the rest of the SDK never couples to a specific
@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
+from sylo.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
 
 
-class LuroStorage(ABC):
-    """Abstract base class for all Luro storage backends.
+class SyloStorage(ABC):
+    """Abstract base class for all Sylo storage backends.
 
     Implementations must handle their own connection management
     and serialization. All methods are async to support non-blocking
@@ -129,3 +129,7 @@ class LuroStorage(ABC):
             The approval request, or None if not found.
         """
         ...
+
+
+# Backwards compatibility alias
+LuroStorage = SyloStorage

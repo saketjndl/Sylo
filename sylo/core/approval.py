@@ -4,11 +4,11 @@ Pauses pipeline execution before irreversible or dangerous actions,
 waiting for a human to explicitly approve or reject before continuing.
 
 Features:
-- @luro.requires_approval decorator
+- @sylo.requires_approval decorator
 - Notification dispatch (Email, Slack, Webhook with HMAC)
 - Polling mechanism with configurable intervals and timeout policies
 - Local development HTTP server on port 7749
-- Programmatic helpers: luro.approve() and luro.reject()
+- Programmatic helpers: sylo.approve() and sylo.reject()
 """
 
 from __future__ import annotations
@@ -26,13 +26,13 @@ from typing import Any, Callable, Literal
 
 import httpx
 
-from luro.config import get_config
-from luro.core.context import Context
-from luro.exceptions import LuroApprovalRejectedError, LuroError
-from luro.models import ApprovalRequest, ApprovalStatus, CheckpointStatus, ExecutionStatus
-from luro.storage import get_storage
+from sylo.config import get_config
+from sylo.core.context import Context
+from sylo.exceptions import SyloApprovalRejectedError, SyloError
+from sylo.models import ApprovalRequest, ApprovalStatus, CheckpointStatus, ExecutionStatus
+from sylo.storage import get_storage
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
 # Global state for local dev server
 _server_lock = threading.Lock()
@@ -77,7 +77,7 @@ def requires_approval(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(ctx: Context, *args: Any, **kwargs: Any) -> Any:
-            from luro.core.pipeline import _current_pipeline
+            from sylo.core.pipeline import _current_pipeline
 
             pipeline = _current_pipeline.get(None)
             if pipeline is None:
@@ -85,7 +85,7 @@ def requires_approval(
                 return await func(ctx, *args, **kwargs)
 
             storage = pipeline._storage
-            step_name = getattr(func, "_luro_step_name", func.__name__)
+            step_name = getattr(func, "_sylo_step_name", getattr(func, "_luro_step_name", func.__name__))
 
             # If checkpoint exists and completed, skip approval gate entirely
             if storage is not None:
@@ -220,7 +220,7 @@ def requires_approval(
                     pipeline.record.status = ExecutionStatus.FAILED
                     if storage is not None:
                         await pipeline._safe_storage_op(storage.save_execution, pipeline.record)
-                raise LuroApprovalRejectedError(
+                raise SyloApprovalRejectedError(
                     f"Approval request '{req.approval_id}' for step '{step_name}' was rejected."
                 )
 
@@ -264,11 +264,11 @@ def requires_approval(
                         pipeline.record.status = ExecutionStatus.FAILED
                         if storage is not None:
                             await pipeline._safe_storage_op(storage.save_execution, pipeline.record)
-                    raise LuroApprovalRejectedError(
+                    raise SyloApprovalRejectedError(
                         f"Approval request '{req.approval_id}' for step '{step_name}' timed out ({on_timeout})."
                     )
 
-            raise LuroApprovalRejectedError(
+            raise SyloApprovalRejectedError(
                 f"Unhandled approval status '{req.status}' for step '{step_name}'."
             )
 
@@ -285,9 +285,9 @@ async def approve(
     storage = get_storage(config)
     req = await storage.get_approval_request(approval_id)
     if req is None:
-        raise LuroError(f"Approval request '{approval_id}' not found.")
+        raise SyloError(f"Approval request '{approval_id}' not found.")
     if req.status != ApprovalStatus.PENDING:
-        raise LuroError(f"Approval request '{approval_id}' is already {req.status.value}.")
+        raise SyloError(f"Approval request '{approval_id}' is already {req.status.value}.")
 
     req.status = ApprovalStatus.APPROVED
     req.decided_at = datetime.now(timezone.utc)
@@ -306,9 +306,9 @@ async def reject(
     storage = get_storage(config)
     req = await storage.get_approval_request(approval_id)
     if req is None:
-        raise LuroError(f"Approval request '{approval_id}' not found.")
+        raise SyloError(f"Approval request '{approval_id}' not found.")
     if req.status != ApprovalStatus.PENDING:
-        raise LuroError(f"Approval request '{approval_id}' is already {req.status.value}.")
+        raise SyloError(f"Approval request '{approval_id}' is already {req.status.value}.")
 
     req.status = ApprovalStatus.REJECTED
     req.decided_at = datetime.now(timezone.utc)
@@ -324,7 +324,7 @@ def _print_console_notice(req: ApprovalRequest) -> None:
     hours = round((req.expires_at - req.created_at).total_seconds() / 3600, 1)
     lines = [
         "",
-        "⏸ Luro Approval Required",
+        "⏸ Sylo Approval Required",
         f"  Pipeline: {req.pipeline_name}",
         f"  Step: {req.step_name}",
         f"  Action: {req.description} ({req.action_class.upper()})",
@@ -358,9 +358,9 @@ async def _send_notifications(req: ApprovalRequest) -> None:
                             "https://api.resend.com/emails",
                             headers={"Authorization": f"Bearer {email_cfg['api_key']}"},
                             json={
-                                "from": email_cfg.get("from", "luro@luro.dev"),
+                                "from": email_cfg.get("from", "sylo@sylo.dev"),
                                 "to": email_cfg.get("to", []),
-                                "subject": f"[Luro Approval Required] {req.title}",
+                                "subject": f"[Sylo Approval Required] {req.title}",
                                 "html": f"<p>{req.description}</p><p>Approve ID: {req.approval_id}</p>",
                             },
                         )
@@ -370,7 +370,7 @@ async def _send_notifications(req: ApprovalRequest) -> None:
                         await client.post(
                             slack_cfg["webhook_url"],
                             json={
-                                "text": f"⏸ *Luro Approval Required*: {req.title}\n{req.description}\n`{req.approval_id}`"
+                                "text": f"⏸ *Sylo Approval Required*: {req.title}\n{req.description}\n`{req.approval_id}`"
                             },
                         )
                 elif channel == "webhook" and "webhook" in notifications:
@@ -382,7 +382,7 @@ async def _send_notifications(req: ApprovalRequest) -> None:
                         headers = {"Content-Type": "application/json"}
                         if secret:
                             sig = hmac.new(secret, payload, hashlib.sha256).hexdigest()
-                            headers["X-Luro-Signature"] = f"sha256={sig}"
+                            headers["X-Sylo-Signature"] = f"sha256={sig}"
                         await client.post(url, headers=headers, content=payload)
             except Exception as exc:
                 logger.warning("Failed to send %s notification: %s", channel, exc)
@@ -404,7 +404,7 @@ class ApprovalHandler(BaseHTTPRequestHandler):
                 status_word = "Approved" if action == "approve" else "Rejected"
                 color = "#10B981" if action == "approve" else "#EF4444"
                 html = f"""<!DOCTYPE html>
-<html><head><title>Luro Approval</title>
+<html><head><title>Sylo Approval</title>
 <style>body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #F9FAFB; }}
 .card {{ background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; }}
 h1 {{ color: {color}; }}</style></head>

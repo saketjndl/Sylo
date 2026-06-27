@@ -1,14 +1,14 @@
-"""Redis storage backend for Luro SDK.
+"""Redis storage backend for Sylo SDK.
 
 Uses Redis for fast checkpoint storage and Redis Streams for
 append-only audit event logging. Suitable for production workloads
 where durability and speed matter.
 
 Key schema:
-    luro:execution:{id}                          — JSON string (ExecutionRecord)
-    luro:checkpoint:{execution_id}:{step_name}   — JSON string (Checkpoint)
-    luro:audit:{execution_id}                    — Redis Stream (AuditEvent entries)
-    luro:pipeline_executions:{pipeline_name}     — Sorted Set (score=timestamp, member=execution_id)
+    sylo:execution:{id}                          — JSON string (ExecutionRecord)
+    sylo:checkpoint:{execution_id}:{step_name}   — JSON string (Checkpoint)
+    sylo:audit:{execution_id}                    — Redis Stream (AuditEvent entries)
+    sylo:pipeline_executions:{pipeline_name}     — Sorted Set (score=timestamp, member=execution_id)
 """
 
 from __future__ import annotations
@@ -16,20 +16,20 @@ from __future__ import annotations
 import logging
 from typing import Any, TYPE_CHECKING
 
-from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
-from luro.storage.base import LuroStorage
+from sylo.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
+from sylo.storage.base import SyloStorage
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis  # type: ignore[import-untyped]
 
 
-logger = logging.getLogger("luro.storage.redis")
+logger = logging.getLogger("sylo.storage.redis")
 
-# Key prefix for all Luro data in Redis
-PREFIX = "luro"
+# Key prefix for all Sylo data in Redis
+PREFIX = "sylo"
 
 
-class RedisStorage(LuroStorage):
+class RedisStorage(SyloStorage):
     """Redis-backed storage for production workloads.
 
     Uses standard Redis keys for executions and checkpoints,

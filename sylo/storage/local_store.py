@@ -1,10 +1,10 @@
-"""Local filesystem storage backend for Luro SDK.
+"""Local filesystem storage backend for Sylo SDK.
 
-Stores execution data as JSON files in ~/.luro/executions/.
+Stores execution data as JSON files in ~/.sylo/executions/.
 Designed for development and testing — no external dependencies required.
 
 Directory structure:
-    ~/.luro/executions/{execution_id}/
+    ~/.sylo/executions/{execution_id}/
         execution.json      — ExecutionRecord
         checkpoints/
             {step_name}.json — Checkpoint
@@ -18,16 +18,16 @@ import json
 import logging
 from pathlib import Path
 
-from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
-from luro.storage.base import LuroStorage
+from sylo.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
+from sylo.storage.base import SyloStorage
 
-logger = logging.getLogger("luro.storage.local")
+logger = logging.getLogger("sylo.storage.local")
 
 # Default root directory for local storage
-DEFAULT_ROOT = Path.home() / ".luro" / "executions"
+DEFAULT_ROOT = Path.home() / ".sylo" / "executions"
 
 
-class LocalStorage(LuroStorage):
+class LocalStorage(SyloStorage):
     """File-based storage backend for development and testing.
 
     All data is stored as human-readable JSON files on disk.

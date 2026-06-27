@@ -6,7 +6,7 @@ future version. Rates are per 1,000 tokens.
 
 from __future__ import annotations
 
-from luro.models import TokenUsage
+from sylo.models import TokenUsage
 
 # Cost per 1,000 tokens (input and output rates)
 COST_PER_1K_TOKENS: dict[str, dict[str, float]] = {

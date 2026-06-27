@@ -1,7 +1,7 @@
-"""Pipeline context manager — the core primitive of Luro.
+"""Pipeline context manager — the core primitive of Sylo.
 
 Usage:
-    async with luro.pipeline("my-pipeline", version="1.0") as pipe:
+    async with sylo.pipeline("my-pipeline", version="1.0") as pipe:
         result = await my_agent_function(inputs)
 
 The context manager handles:
@@ -23,15 +23,15 @@ from datetime import datetime, timezone
 from types import TracebackType
 from typing import Any
 
-from luro.config import get_config
-from luro.core.context import Context
-from luro.exceptions import LuroStorageError
-from luro.models import AuditEvent, ExecutionRecord, ExecutionStatus, TokenCost
-from luro.storage import LuroStorage, get_storage
+from sylo.config import get_config
+from sylo.core.context import Context
+from sylo.exceptions import SyloStorageError
+from sylo.models import AuditEvent, ExecutionRecord, ExecutionStatus, TokenCost
+from sylo.storage import SyloStorage, get_storage
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
-# Context variable so @luro.step can access the current pipeline
+# Context variable so @sylo.step can access the current pipeline
 _current_pipeline: contextvars.ContextVar[Pipeline | None] = contextvars.ContextVar(
     "_current_pipeline", default=None
 )
@@ -44,7 +44,7 @@ class Pipeline:
     or failure), and persists everything to the configured storage backend.
 
     In development mode, storage errors are logged but never crash the
-    user's pipeline. In production mode, they raise LuroStorageError.
+    user's pipeline. In production mode, they raise SyloStorageError.
 
     Attributes:
         name: The pipeline name.
@@ -70,7 +70,7 @@ class Pipeline:
         self.resume_from: str | None = None
         self.metadata: dict[str, Any] = metadata or {}
 
-        self._storage: LuroStorage | None = None
+        self._storage: SyloStorage | None = None
         self._sequence_counter: int = 0
         self._step_counter: int = 0
         self._step_results: list[Any] = []  # StepResult instances
@@ -113,7 +113,7 @@ class Pipeline:
         if self.resume_from is None:
             await self._auto_detect_resumption()
 
-        # Set the current pipeline context var so @luro.step can access it
+        # Set the current pipeline context var so @sylo.step can access it
         self._context_token = _current_pipeline.set(self)
 
         # Persist the initial record
@@ -135,14 +135,14 @@ class Pipeline:
 
         if resuming:
             logger.info(
-                "Luro pipeline started: %s (execution: %s, resuming from: %s)",
+                "Sylo pipeline started: %s (execution: %s, resuming from: %s)",
                 self.name,
                 self.execution_id[:8],
                 self.resume_from[:8] if self.resume_from else "",
             )
         else:
             logger.info(
-                "Luro pipeline started: %s (execution: %s)",
+                "Sylo pipeline started: %s (execution: %s)",
                 self.name,
                 self.execution_id[:8],
             )
@@ -193,7 +193,7 @@ class Pipeline:
             )
 
             logger.error(
-                "Luro pipeline failed: %s (execution: %s) — %s",
+                "Sylo pipeline failed: %s (execution: %s) — %s",
                 self.name,
                 self.execution_id[:8],
                 exc_val,
@@ -213,7 +213,7 @@ class Pipeline:
             )
 
             logger.info(
-                "Luro pipeline completed: %s (execution: %s)",
+                "Sylo pipeline completed: %s (execution: %s)",
                 self.name,
                 self.execution_id[:8],
             )
@@ -237,7 +237,7 @@ class Pipeline:
         Shows step completion stats, token usage, costs, and savings
         from checkpoint resumption.
         """
-        from luro.core.checkpoint import StepResult
+        from sylo.core.checkpoint import StepResult
 
         results: list[StepResult] = self._step_results
 
@@ -256,7 +256,7 @@ class Pipeline:
 
         lines = [
             "",
-            "✓ Luro execution complete",
+            "✓ Sylo execution complete",
             f"  Steps: {steps_completed} completed, {steps_skipped} skipped, {steps_retried} retried",
             f"  Tokens: {total_tokens:,} total | Est. cost: ${total_cost:.3f}",
         ]
@@ -280,7 +280,7 @@ class Pipeline:
 
         Queries storage for the most recent FAILED or RUNNING execution
         of this pipeline. If found, loads its checkpoints so that
-        @luro.step can skip already-completed steps.
+        @sylo.step can skip already-completed steps.
         """
         if self._storage is None:
             return
@@ -374,19 +374,19 @@ class Pipeline:
         """Execute a storage operation with environment-aware error handling.
 
         In development mode: catches and logs errors, never crashes.
-        In production mode: lets LuroStorageError propagate.
+        In production mode: lets SyloStorageError propagate.
         """
         config = get_config()
         try:
             return await func(*args)
         except Exception as exc:
             if config.is_production:
-                raise LuroStorageError(
+                raise SyloStorageError(
                     f"Storage operation failed: {exc}"
                 ) from exc
             else:
                 logger.warning(
-                    "Luro storage operation failed (non-fatal in %s mode): %s",
+                    "Sylo storage operation failed (non-fatal in %s mode): %s",
                     config.environment,
                     exc,
                 )

@@ -1,8 +1,8 @@
-"""Luro SDK configuration.
+"""Sylo SDK configuration.
 
-Supports both programmatic configuration via luro.init() and
+Supports both programmatic configuration via sylo.init() and
 environment variable fallbacks. Environment variables are prefixed
-with LURO_ and use uppercase naming.
+with SYLO_ and use uppercase naming.
 """
 
 from __future__ import annotations
@@ -13,28 +13,28 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from luro.exceptions import LuroConfigError
+from sylo.exceptions import SyloConfigError
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
 # Valid values
 VALID_ENVIRONMENTS = ("development", "staging", "production")
 VALID_STORAGE_BACKENDS = ("local", "redis", "cloud")
 
 
-class LuroConfig(BaseModel):
+class SyloConfig(BaseModel):
     """SDK configuration.
 
-    All fields can be set programmatically via luro.init() or through
+    All fields can be set programmatically via sylo.init() or through
     environment variables. Programmatic values take precedence.
 
     Environment variables:
-        LURO_API_KEY: API key for Luro Cloud
-        LURO_PROJECT: Project name (required)
-        LURO_ENVIRONMENT: development | staging | production
-        LURO_STORAGE: local | redis | cloud
-        LURO_REDIS_URL: Redis connection URL
-        LURO_CLOUD_API_URL: Luro Cloud API base URL
+        SYLO_API_KEY: API key for Sylo Cloud
+        SYLO_PROJECT: Project name (required)
+        SYLO_ENVIRONMENT: development | staging | production
+        SYLO_STORAGE: local | redis | cloud
+        SYLO_REDIS_URL: Redis connection URL
+        SYLO_CLOUD_API_URL: Sylo Cloud API base URL
     """
 
     project: str
@@ -42,7 +42,7 @@ class LuroConfig(BaseModel):
     environment: Literal["development", "staging", "production"] = "development"
     storage: Literal["local", "redis", "cloud"] = "local"
     redis_url: str = "redis://localhost:6379"
-    cloud_api_url: str = "https://api.luro.dev"
+    cloud_api_url: str = "https://api.sylo.dev"
     notifications: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
@@ -50,12 +50,12 @@ class LuroConfig(BaseModel):
     def load_env_defaults(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Fall back to environment variables for any unset fields."""
         env_mapping = {
-            "project": "LURO_PROJECT",
-            "api_key": "LURO_API_KEY",
-            "environment": "LURO_ENVIRONMENT",
-            "storage": "LURO_STORAGE",
-            "redis_url": "LURO_REDIS_URL",
-            "cloud_api_url": "LURO_CLOUD_API_URL",
+            "project": "SYLO_PROJECT",
+            "api_key": "SYLO_API_KEY",
+            "environment": "SYLO_ENVIRONMENT",
+            "storage": "SYLO_STORAGE",
+            "redis_url": "SYLO_REDIS_URL",
+            "cloud_api_url": "SYLO_CLOUD_API_URL",
         }
         for field_name, env_var in env_mapping.items():
             if field_name not in data or data[field_name] is None:
@@ -80,26 +80,29 @@ class LuroConfig(BaseModel):
         return self.api_key is not None
 
 
+# Backwards compatibility alias
+LuroConfig = SyloConfig
+
 # ── Global config singleton ──────────────────────────────────────
 
-_config: LuroConfig | None = None
+_config: SyloConfig | None = None
 
 
-def get_config() -> LuroConfig:
+def get_config() -> SyloConfig:
     """Get the current global configuration.
 
     Raises:
-        LuroConfigError: If luro.init() has not been called yet.
+        SyloConfigError: If sylo.init() has not been called yet.
     """
     if _config is None:
-        raise LuroConfigError(
-            "Luro is not initialized. Call luro.init(project='my-project') first."
+        raise SyloConfigError(
+            "Sylo is not initialized. Call sylo.init(project='my-project') first."
         )
     return _config
 
 
-def set_config(config: LuroConfig) -> None:
-    """Set the global configuration. Called by luro.init()."""
+def set_config(config: SyloConfig) -> None:
+    """Set the global configuration. Called by sylo.init()."""
     global _config
     _config = config
 

@@ -17,58 +17,58 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import luro
-from luro.core.checkpoint import step, StepResult
-from luro.core.context import Context
-from luro.core.costs import estimate_cost, extract_token_usage, COST_PER_1K_TOKENS
-from luro.models import (
+import sylo
+from sylo.core.checkpoint import step, StepResult
+from sylo.core.context import Context
+from sylo.core.costs import estimate_cost, extract_token_usage, COST_PER_1K_TOKENS
+from sylo.models import (
     Checkpoint,
     CheckpointStatus,
     ExecutionRecord,
     ExecutionStatus,
     TokenUsage,
 )
-from luro.storage.local_store import LocalStorage
+from sylo.storage.local_store import LocalStorage
 
 
 @pytest.fixture
-def setup_luro(tmp_storage_dir: Path):
-    """Initialize luro with local storage in a temp directory."""
-    luro.init(project="test-project", environment="development", storage="local")
+def setup_sylo(tmp_storage_dir: Path):
+    """Initialize sylo with local storage in a temp directory."""
+    sylo.init(project="test-project", environment="development", storage="local")
 
     def _patched_get_storage(config):
         return LocalStorage(root_dir=tmp_storage_dir)
 
-    with patch("luro.core.pipeline.get_storage", _patched_get_storage):
+    with patch("sylo.core.pipeline.get_storage", _patched_get_storage):
         yield tmp_storage_dir
 
 
 class TestStepDecorator:
-    """Tests for the @luro.step decorator."""
+    """Tests for the @sylo.step decorator."""
 
     @pytest.mark.asyncio
-    async def test_step_executes_and_returns_result(self, setup_luro: Path):
+    async def test_step_executes_and_returns_result(self, setup_sylo: Path):
         """A step should execute and return its result."""
 
-        @luro.step("my-step")
-        async def my_step(ctx: luro.Context) -> dict:
+        @sylo.step("my-step")
+        async def my_step(ctx: sylo.Context) -> dict:
             return {"data": "hello"}
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             result = await my_step(pipe.context)
 
         assert result == {"data": "hello"}
 
     @pytest.mark.asyncio
-    async def test_step_saves_checkpoint(self, setup_luro: Path):
+    async def test_step_saves_checkpoint(self, setup_sylo: Path):
         """A step should save a checkpoint after execution."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        @luro.step("save-test")
-        async def save_step(ctx: luro.Context) -> dict:
+        @sylo.step("save-test")
+        async def save_step(ctx: sylo.Context) -> dict:
             return {"saved": True}
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await save_step(pipe.context)
             exec_id = pipe.execution_id
 
@@ -78,16 +78,16 @@ class TestStepDecorator:
         assert cp.output["saved"] is True
 
     @pytest.mark.asyncio
-    async def test_step_records_duration(self, setup_luro: Path):
+    async def test_step_records_duration(self, setup_sylo: Path):
         """Steps should record their execution duration."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        @luro.step("timed-step")
-        async def timed_step(ctx: luro.Context) -> dict:
+        @sylo.step("timed-step")
+        async def timed_step(ctx: sylo.Context) -> dict:
             await asyncio.sleep(0.05)
             return {"done": True}
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await timed_step(pipe.context)
             exec_id = pipe.execution_id
 
@@ -100,19 +100,19 @@ class TestCheckpointResumption:
     """Tests for checkpoint-based resumption (skipping completed steps)."""
 
     @pytest.mark.asyncio
-    async def test_completed_step_not_reexecuted(self, setup_luro: Path):
+    async def test_completed_step_not_reexecuted(self, setup_sylo: Path):
         """A step with an existing COMPLETED checkpoint should be skipped."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
         call_count = 0
 
-        @luro.step("resumable-step")
-        async def resumable_step(ctx: luro.Context) -> dict:
+        @sylo.step("resumable-step")
+        async def resumable_step(ctx: sylo.Context) -> dict:
             nonlocal call_count
             call_count += 1
             return {"result": "fresh"}
 
         # Run 1: execute the step normally
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             result1 = await resumable_step(pipe.context)
             exec_id = pipe.execution_id
 
@@ -125,7 +125,7 @@ class TestCheckpointResumption:
         assert cp is not None
 
         # Run 2: create a new execution but pre-load the checkpoint
-        async with luro.pipeline("test-pipeline") as pipe2:
+        async with sylo.pipeline("test-pipeline") as pipe2:
             # Pre-save the checkpoint under the new execution_id
             cp.execution_id = pipe2.execution_id
             cp.checkpoint_id = "reused-cp"
@@ -139,19 +139,19 @@ class TestCheckpointResumption:
         assert result2 == {"result": "fresh"}
 
     @pytest.mark.asyncio
-    async def test_previous_outputs_populated(self, setup_luro: Path):
+    async def test_previous_outputs_populated(self, setup_sylo: Path):
         """Context.previous_outputs should contain outputs from prior steps."""
 
-        @luro.step("step-1")
-        async def step_1(ctx: luro.Context) -> dict:
+        @sylo.step("step-1")
+        async def step_1(ctx: sylo.Context) -> dict:
             return {"value": 42}
 
-        @luro.step("step-2")
-        async def step_2(ctx: luro.Context) -> dict:
+        @sylo.step("step-2")
+        async def step_2(ctx: sylo.Context) -> dict:
             prev = ctx.previous_outputs["step-1"]
             return {"doubled": prev["value"] * 2}
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await step_1(pipe.context)
             result = await step_2(pipe.context)
 
@@ -242,12 +242,12 @@ class TestTokenCostEstimation:
         assert extract_token_usage(42) is None
 
     @pytest.mark.asyncio
-    async def test_step_extracts_token_usage(self, setup_luro: Path):
+    async def test_step_extracts_token_usage(self, setup_sylo: Path):
         """Step should automatically extract token usage from return value."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        @luro.step("llm-call")
-        async def llm_call(ctx: luro.Context) -> dict:
+        @sylo.step("llm-call")
+        async def llm_call(ctx: sylo.Context) -> dict:
             return {
                 "content": "Generated text",
                 "usage": {
@@ -258,7 +258,7 @@ class TestTokenCostEstimation:
                 },
             }
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await llm_call(pipe.context)
             exec_id = pipe.execution_id
 
@@ -277,49 +277,48 @@ class TestRetryBehavior:
     """Tests for step retry with exponential backoff."""
 
     @pytest.mark.asyncio
-    async def test_retry_on_failure(self, setup_luro: Path):
+    async def test_retry_on_failure(self, setup_sylo: Path):
         """Step should retry up to max_retries times before failing."""
         attempt_count = 0
 
-        @luro.step("flaky-step", max_retries=2, retry_delay=0.01)
-        async def flaky_step(ctx: luro.Context) -> dict:
+        @sylo.step("flaky-step", max_retries=2, retry_delay=0.01)
+        async def flaky_step(ctx: sylo.Context) -> dict:
             nonlocal attempt_count
             attempt_count += 1
             if attempt_count < 3:
                 raise ValueError(f"Attempt {attempt_count} failed")
             return {"success": True}
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             result = await flaky_step(pipe.context)
 
         assert attempt_count == 3  # 1 initial + 2 retries
         assert result == {"success": True}
 
     @pytest.mark.asyncio
-    async def test_retry_exhausted_raises(self, setup_luro: Path):
+    async def test_retry_exhausted_raises(self, setup_sylo: Path):
         """After all retries, the original exception should propagate."""
 
-        @luro.step("always-fails", max_retries=2, retry_delay=0.01)
-        async def always_fails(ctx: luro.Context) -> dict:
+        @sylo.step("always-fails", max_retries=2, retry_delay=0.01)
+        async def always_fails(ctx: sylo.Context) -> dict:
             raise RuntimeError("permanent failure")
 
         with pytest.raises(RuntimeError, match="permanent failure"):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 await always_fails(pipe.context)
 
     @pytest.mark.asyncio
-    async def test_retry_saves_failed_checkpoint(self, setup_luro: Path):
+    async def test_retry_saves_failed_checkpoint(self, setup_sylo: Path):
         """After exhausting retries, a FAILED checkpoint should be saved."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        @luro.step("fail-step", max_retries=1, retry_delay=0.01)
-        async def fail_step(ctx: luro.Context) -> dict:
+        @sylo.step("fail-step", max_retries=1, retry_delay=0.01)
+        async def fail_step(ctx: sylo.Context) -> dict:
             raise ValueError("boom")
 
         with pytest.raises(ValueError):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 await fail_step(pipe.context)
-                exec_id = pipe.execution_id
 
         # Get exec_id from the pipe that's still in scope
         exec_id = pipe.execution_id
@@ -329,18 +328,18 @@ class TestRetryBehavior:
         assert cp.retry_count == 2  # 1 initial + 1 retry
 
     @pytest.mark.asyncio
-    async def test_no_retry_when_max_retries_is_zero(self, setup_luro: Path):
+    async def test_no_retry_when_max_retries_is_zero(self, setup_sylo: Path):
         """Steps with max_retries=0 should fail immediately."""
         call_count = 0
 
-        @luro.step("no-retry", max_retries=0)
-        async def no_retry(ctx: luro.Context) -> dict:
+        @sylo.step("no-retry", max_retries=0)
+        async def no_retry(ctx: sylo.Context) -> dict:
             nonlocal call_count
             call_count += 1
             raise ValueError("fail")
 
         with pytest.raises(ValueError):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 await no_retry(pipe.context)
 
         assert call_count == 1
@@ -381,12 +380,12 @@ class TestCostReport:
 
     @pytest.mark.asyncio
     async def test_cost_report_printed_in_dev_mode(
-        self, setup_luro: Path, capsys
+        self, setup_sylo: Path, capsys
     ):
         """Cost report should be printed to console in dev mode."""
 
-        @luro.step("step-1")
-        async def step_1(ctx: luro.Context) -> dict:
+        @sylo.step("step-1")
+        async def step_1(ctx: sylo.Context) -> dict:
             return {
                 "data": "hello",
                 "usage": {
@@ -397,27 +396,27 @@ class TestCostReport:
                 },
             }
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await step_1(pipe.context)
 
         captured = capsys.readouterr()
-        assert "Luro execution complete" in captured.out
+        assert "Sylo execution complete" in captured.out
         assert "Steps:" in captured.out
         assert "Tokens:" in captured.out
 
     @pytest.mark.asyncio
     async def test_cost_report_shows_skipped_steps(
-        self, setup_luro: Path, capsys
+        self, setup_sylo: Path, capsys
     ):
         """Cost report should show skipped steps when resuming."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        @luro.step("cached-step")
-        async def cached_step(ctx: luro.Context) -> dict:
+        @sylo.step("cached-step")
+        async def cached_step(ctx: sylo.Context) -> dict:
             return {"data": "hello", "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150, "model": "gpt-4o"}}
 
         # Run 1: normal execution
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             await cached_step(pipe.context)
             exec_id = pipe.execution_id
 
@@ -426,7 +425,7 @@ class TestCostReport:
         assert cp is not None
 
         # Run 2: with pre-loaded checkpoint
-        async with luro.pipeline("test-pipeline") as pipe2:
+        async with sylo.pipeline("test-pipeline") as pipe2:
             cp.execution_id = pipe2.execution_id
             await storage.save_checkpoint(cp)
             await cached_step(pipe2.context)
@@ -442,8 +441,8 @@ class TestStepOutsidePipeline:
     async def test_step_runs_without_pipeline(self):
         """Steps should execute normally outside a pipeline (no checkpointing)."""
 
-        @luro.step("standalone")
-        async def standalone(ctx: luro.Context) -> dict:
+        @sylo.step("standalone")
+        async def standalone(ctx: sylo.Context) -> dict:
             return {"result": "works"}
 
         ctx = Context(execution_id="test", pipeline_name="test")

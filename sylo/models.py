@@ -1,8 +1,8 @@
-"""Luro SDK data models.
+"""Sylo SDK data models.
 
 All data structures use Pydantic v2 for validation, serialization,
 and schema generation. These models define the canonical shape of
-every record Luro produces.
+every record Sylo produces.
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ class ApprovalRequest(BaseModel):
 class ExecutionRecord(BaseModel):
     """Complete record of a single pipeline execution.
 
-    Every time luro.pipeline() runs, one ExecutionRecord is created.
+    Every time sylo.pipeline() runs, one ExecutionRecord is created.
     It contains the execution metadata, all checkpoints, all audit
     events, and the aggregate token cost.
     """

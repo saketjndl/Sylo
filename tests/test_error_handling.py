@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import luro
-from luro.config import LuroConfig, set_config
-from luro.exceptions import LuroStorageError
-from luro.storage.local_store import LocalStorage
+import sylo
+from sylo.config import SyloConfig, set_config
+from sylo.exceptions import SyloStorageError
+from sylo.storage.local_store import LocalStorage
 
 
 class TestDevModeErrorHandling:
@@ -22,7 +22,7 @@ class TestDevModeErrorHandling:
         self, tmp_storage_dir: Path
     ):
         """In dev mode, a broken storage backend should not crash the pipeline."""
-        luro.init(project="test", environment="development", storage="local")
+        sylo.init(project="test", environment="development", storage="local")
 
         # Create a storage mock that always fails
         failing_storage = AsyncMock()
@@ -33,9 +33,9 @@ class TestDevModeErrorHandling:
             side_effect=IOError("disk full")
         )
 
-        with patch("luro.core.pipeline.get_storage", return_value=failing_storage):
+        with patch("sylo.core.pipeline.get_storage", return_value=failing_storage):
             # This should NOT raise despite storage failures
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 pass  # pipeline code runs fine
 
         # Pipeline should still complete normally
@@ -46,7 +46,7 @@ class TestDevModeErrorHandling:
         self, tmp_storage_dir: Path, caplog
     ):
         """In dev mode, storage failures should produce warning logs."""
-        luro.init(project="test", environment="development", storage="local")
+        sylo.init(project="test", environment="development", storage="local")
 
         failing_storage = AsyncMock()
         failing_storage.save_execution = AsyncMock(
@@ -56,23 +56,23 @@ class TestDevModeErrorHandling:
             side_effect=IOError("disk full")
         )
 
-        with patch("luro.core.pipeline.get_storage", return_value=failing_storage):
-            with caplog.at_level(logging.WARNING, logger="luro"):
-                async with luro.pipeline("test-pipeline") as pipe:
+        with patch("sylo.core.pipeline.get_storage", return_value=failing_storage):
+            with caplog.at_level(logging.WARNING, logger="sylo"):
+                async with sylo.pipeline("test-pipeline") as pipe:
                     pass
 
         assert any("non-fatal" in msg.lower() for msg in caplog.messages)
 
 
 class TestProdModeErrorHandling:
-    """In production mode, storage errors should raise LuroStorageError."""
+    """In production mode, storage errors should raise SyloStorageError."""
 
     @pytest.mark.asyncio
     async def test_storage_failure_raises_in_production(
         self, tmp_storage_dir: Path
     ):
-        """In production mode, storage failures must raise LuroStorageError."""
-        luro.init(project="test", environment="production", storage="local")
+        """In production mode, storage failures must raise SyloStorageError."""
+        sylo.init(project="test", environment="production", storage="local")
 
         failing_storage = AsyncMock()
         failing_storage.save_execution = AsyncMock(
@@ -82,9 +82,9 @@ class TestProdModeErrorHandling:
             side_effect=IOError("disk full")
         )
 
-        with patch("luro.core.pipeline.get_storage", return_value=failing_storage):
-            with pytest.raises(LuroStorageError, match="Storage operation failed"):
-                async with luro.pipeline("test-pipeline") as pipe:
+        with patch("sylo.core.pipeline.get_storage", return_value=failing_storage):
+            with pytest.raises(SyloStorageError, match="Storage operation failed"):
+                async with sylo.pipeline("test-pipeline") as pipe:
                     pass
 
 
@@ -96,9 +96,9 @@ class TestCloudRetryBehavior:
         """Cloud storage should retry up to 3 times on connection failures."""
         import httpx
 
-        from luro.storage.cloud_store import CloudStorage
+        from sylo.storage.cloud_store import CloudStorage
 
-        cloud = CloudStorage(api_key="luro_test", base_url="http://localhost:9999")
+        cloud = CloudStorage(api_key="sylo_test", base_url="http://localhost:9999")
 
         # Mock the httpx client to fail with connection error
         mock_client = AsyncMock()
@@ -107,8 +107,8 @@ class TestCloudRetryBehavior:
         )
         cloud._client = mock_client
 
-        with pytest.raises(LuroStorageError, match="failed after"):
-            from luro.models import ExecutionRecord
+        with pytest.raises(SyloStorageError, match="failed after"):
+            from sylo.models import ExecutionRecord
 
             await cloud.save_execution(
                 ExecutionRecord(pipeline_name="test")
@@ -122,9 +122,9 @@ class TestCloudRetryBehavior:
         """Cloud storage should retry on 5xx server errors."""
         import httpx
 
-        from luro.storage.cloud_store import CloudStorage
+        from sylo.storage.cloud_store import CloudStorage
 
-        cloud = CloudStorage(api_key="luro_test", base_url="http://localhost:9999")
+        cloud = CloudStorage(api_key="sylo_test", base_url="http://localhost:9999")
 
         # Mock the httpx client to return 500
         mock_response = AsyncMock()
@@ -135,8 +135,8 @@ class TestCloudRetryBehavior:
         mock_client.request = AsyncMock(return_value=mock_response)
         cloud._client = mock_client
 
-        with pytest.raises(LuroStorageError):
-            from luro.models import ExecutionRecord
+        with pytest.raises(SyloStorageError):
+            from sylo.models import ExecutionRecord
 
             await cloud.save_execution(
                 ExecutionRecord(pipeline_name="test")
@@ -151,9 +151,9 @@ class TestCloudRetryBehavior:
         import httpx
         from unittest.mock import Mock
 
-        from luro.storage.cloud_store import CloudStorage
+        from sylo.storage.cloud_store import CloudStorage
 
-        cloud = CloudStorage(api_key="luro_test", base_url="http://localhost:9999")
+        cloud = CloudStorage(api_key="sylo_test", base_url="http://localhost:9999")
 
         mock_response = Mock()
         mock_response.status_code = 404
@@ -170,8 +170,8 @@ class TestCloudRetryBehavior:
         mock_client.request = AsyncMock(return_value=mock_response)
         cloud._client = mock_client
 
-        with pytest.raises(LuroStorageError):
-            from luro.models import ExecutionRecord
+        with pytest.raises(SyloStorageError):
+            from sylo.models import ExecutionRecord
 
             await cloud.save_execution(
                 ExecutionRecord(pipeline_name="test")

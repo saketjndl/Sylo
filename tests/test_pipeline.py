@@ -7,25 +7,25 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import luro
-from luro.config import get_config
-from luro.core.pipeline import Pipeline
-from luro.models import ExecutionStatus
-from luro.storage.local_store import LocalStorage
+import sylo
+from sylo.config import get_config
+from sylo.core.pipeline import Pipeline
+from sylo.models import ExecutionStatus
+from sylo.storage.local_store import LocalStorage
 
 
 @pytest.fixture
-def setup_luro(tmp_storage_dir: Path):
-    """Initialize luro and patch storage to use temp directory."""
-    luro.init(project="test-project", environment="development", storage="local")
+def setup_sylo(tmp_storage_dir: Path):
+    """Initialize sylo and patch storage to use temp directory."""
+    sylo.init(project="test-project", environment="development", storage="local")
 
     # Patch the storage factory to use our temp dir
-    _original_get_storage = luro.storage.get_storage
+    _original_get_storage = sylo.storage.get_storage
 
     def _patched_get_storage(config):
         return LocalStorage(root_dir=tmp_storage_dir)
 
-    with patch("luro.core.pipeline.get_storage", _patched_get_storage):
+    with patch("sylo.core.pipeline.get_storage", _patched_get_storage):
         yield tmp_storage_dir
 
 
@@ -33,9 +33,9 @@ class TestPipelineLifecycle:
     """Tests for the pipeline context manager lifecycle."""
 
     @pytest.mark.asyncio
-    async def test_successful_pipeline(self, setup_luro: Path):
+    async def test_successful_pipeline(self, setup_sylo: Path):
         """Successful pipeline should create a COMPLETED execution record."""
-        async with luro.pipeline("test-pipeline", version="1.0") as pipe:
+        async with sylo.pipeline("test-pipeline", version="1.0") as pipe:
             assert pipe.execution_id  # should be set
             assert pipe.name == "test-pipeline"
             assert pipe.version == "1.0"
@@ -48,10 +48,10 @@ class TestPipelineLifecycle:
         assert pipe.record.error is None
 
     @pytest.mark.asyncio
-    async def test_failed_pipeline(self, setup_luro: Path):
+    async def test_failed_pipeline(self, setup_sylo: Path):
         """Failed pipeline should mark execution as FAILED and re-raise."""
         with pytest.raises(ValueError, match="test error"):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 raise ValueError("test error")
 
         assert pipe.record.status == ExecutionStatus.FAILED
@@ -60,26 +60,26 @@ class TestPipelineLifecycle:
         assert pipe.record.completed_at is not None
 
     @pytest.mark.asyncio
-    async def test_exception_is_not_swallowed(self, setup_luro: Path):
+    async def test_exception_is_not_swallowed(self, setup_sylo: Path):
         """Pipeline should never swallow exceptions — they must propagate."""
         with pytest.raises(RuntimeError):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 raise RuntimeError("critical failure")
 
     @pytest.mark.asyncio
-    async def test_execution_id_is_unique(self, setup_luro: Path):
+    async def test_execution_id_is_unique(self, setup_sylo: Path):
         """Each pipeline run should get a unique execution ID."""
         ids = []
         for _ in range(5):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 ids.append(pipe.execution_id)
 
         assert len(set(ids)) == 5  # all unique
 
     @pytest.mark.asyncio
-    async def test_pipeline_metadata(self, setup_luro: Path):
+    async def test_pipeline_metadata(self, setup_sylo: Path):
         """Pipeline should pass through user-defined metadata."""
-        async with luro.pipeline(
+        async with sylo.pipeline(
             "test-pipeline",
             metadata={"user_id": "123", "run_type": "scheduled"},
         ) as pipe:
@@ -89,9 +89,9 @@ class TestPipelineLifecycle:
         assert pipe.record.metadata["run_type"] == "scheduled"
 
     @pytest.mark.asyncio
-    async def test_pipeline_records_timing(self, setup_luro: Path):
+    async def test_pipeline_records_timing(self, setup_sylo: Path):
         """Pipeline should record start and end times."""
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             started = pipe.record.started_at
 
         assert pipe.record.started_at == started
@@ -103,11 +103,11 @@ class TestPipelineStorage:
     """Tests for pipeline storage persistence."""
 
     @pytest.mark.asyncio
-    async def test_execution_persisted_on_success(self, setup_luro: Path):
+    async def test_execution_persisted_on_success(self, setup_sylo: Path):
         """Execution record should be saved to storage on success."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             exec_id = pipe.execution_id
 
         # Record should be on disk
@@ -116,12 +116,12 @@ class TestPipelineStorage:
         assert record.status == ExecutionStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_execution_persisted_on_failure(self, setup_luro: Path):
+    async def test_execution_persisted_on_failure(self, setup_sylo: Path):
         """Execution record should be saved to storage even on failure."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
         with pytest.raises(ValueError):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 exec_id = pipe.execution_id
                 raise ValueError("boom")
 
@@ -131,11 +131,11 @@ class TestPipelineStorage:
         assert "boom" in record.error
 
     @pytest.mark.asyncio
-    async def test_audit_events_emitted(self, setup_luro: Path):
+    async def test_audit_events_emitted(self, setup_sylo: Path):
         """Pipeline should emit PIPELINE_STARTED and PIPELINE_COMPLETED events."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
-        async with luro.pipeline("test-pipeline") as pipe:
+        async with sylo.pipeline("test-pipeline") as pipe:
             exec_id = pipe.execution_id
 
         events = await storage.get_audit_events(exec_id)
@@ -144,12 +144,12 @@ class TestPipelineStorage:
         assert "PIPELINE_COMPLETED" in event_types
 
     @pytest.mark.asyncio
-    async def test_failed_pipeline_audit_events(self, setup_luro: Path):
+    async def test_failed_pipeline_audit_events(self, setup_sylo: Path):
         """Failed pipeline should emit PIPELINE_STARTED and PIPELINE_FAILED events."""
-        storage = LocalStorage(root_dir=setup_luro)
+        storage = LocalStorage(root_dir=setup_sylo)
 
         with pytest.raises(ValueError):
-            async with luro.pipeline("test-pipeline") as pipe:
+            async with sylo.pipeline("test-pipeline") as pipe:
                 exec_id = pipe.execution_id
                 raise ValueError("test error")
 

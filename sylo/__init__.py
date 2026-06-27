@@ -1,23 +1,23 @@
-"""Luro SDK — Production operating layer for AI agent pipelines.
+"""Sylo SDK — Production operating layer for AI agent pipelines.
 
-Luro wraps existing agent frameworks (LangGraph, CrewAI, OpenAI Agents SDK)
+Sylo wraps existing agent frameworks (LangGraph, CrewAI, OpenAI Agents SDK)
 and adds production guarantees: smart checkpointing, permission enforcement,
 human approval gates, and immutable audit logging.
 
 Quick start:
-    import luro
+    import sylo
 
-    luro.init(project="my-project")
+    sylo.init(project="my-project")
 
-    async with luro.pipeline("my-pipeline", version="1.0") as pipe:
+    async with sylo.pipeline("my-pipeline", version="1.0") as pipe:
         result = await my_agent_function(inputs)
 
 Environment variables:
-    LURO_API_KEY       — API key for Luro Cloud (optional)
-    LURO_PROJECT       — Project name
-    LURO_ENVIRONMENT   — development | staging | production
-    LURO_STORAGE       — local | redis | cloud
-    LURO_REDIS_URL     — Redis connection URL
+    SYLO_API_KEY       — API key for Sylo Cloud (optional)
+    SYLO_PROJECT       — Project name
+    SYLO_ENVIRONMENT   — development | staging | production
+    SYLO_STORAGE       — local | redis | cloud
+    SYLO_REDIS_URL     — Redis connection URL
 """
 
 from __future__ import annotations
@@ -25,13 +25,19 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from luro.config import LuroConfig, reset_config, set_config
-from luro.core.approval import approve, reject, requires_approval
-from luro.core.checkpoint import step
-from luro.core.context import Context
-from luro.core.pipeline import Pipeline
-from luro.core.trust import trust
-from luro.exceptions import (
+from sylo.config import SyloConfig, LuroConfig, reset_config, set_config
+from sylo.core.approval import approve, reject, requires_approval
+from sylo.core.checkpoint import step
+from sylo.core.context import Context
+from sylo.core.pipeline import Pipeline
+from sylo.core.trust import trust
+from sylo.exceptions import (
+    SyloApprovalRejectedError,
+    SyloCheckpointExpiredError,
+    SyloConfigError,
+    SyloError,
+    SyloPermissionError,
+    SyloStorageError,
     LuroApprovalRejectedError,
     LuroCheckpointExpiredError,
     LuroConfigError,
@@ -39,7 +45,7 @@ from luro.exceptions import (
     LuroPermissionError,
     LuroStorageError,
 )
-from luro.models import (
+from sylo.models import (
     ApprovalRequest,
     ApprovalStatus,
     AuditEvent,
@@ -70,7 +76,14 @@ __all__ = [
     "ApprovalStatus",
     "AuditEvent",
     "ExecutionStatus",
-    # Exceptions
+    # Exceptions (Sylo)
+    "SyloError",
+    "SyloConfigError",
+    "SyloStorageError",
+    "SyloPermissionError",
+    "SyloApprovalRejectedError",
+    "SyloCheckpointExpiredError",
+    # Exceptions (Luro Backwards Compat)
     "LuroError",
     "LuroConfigError",
     "LuroStorageError",
@@ -80,6 +93,7 @@ __all__ = [
 ]
 
 # Configure logging with a NullHandler so library users control output
+logging.getLogger("sylo").addHandler(logging.NullHandler())
 logging.getLogger("luro").addHandler(logging.NullHandler())
 
 
@@ -89,45 +103,45 @@ def init(
     environment: str = "development",
     storage: str = "local",
     redis_url: str = "redis://localhost:6379",
-    cloud_api_url: str = "https://api.luro.dev",
+    cloud_api_url: str = "https://api.sylo.dev",
     notifications: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> None:
-    """Initialize the Luro SDK.
+    """Initialize the Sylo SDK.
 
     Must be called once at the top of your project before using
-    any other Luro functionality. Configures the storage backend,
+    any other Sylo functionality. Configures the storage backend,
     environment mode, and optional cloud sync.
 
     Args:
-        project: Project name (required). Can also be set via LURO_PROJECT.
-        api_key: Luro Cloud API key. Enables cloud sync when set.
-            Can also be set via LURO_API_KEY.
+        project: Project name (required). Can also be set via SYLO_PROJECT.
+        api_key: Sylo Cloud API key. Enables cloud sync when set.
+            Can also be set via SYLO_API_KEY.
         environment: Execution environment — "development" (default),
             "staging", or "production". Affects error handling behavior.
         storage: Storage backend — "local" (default), "redis", or "cloud".
         redis_url: Redis connection URL. Only used when storage="redis".
-        cloud_api_url: Luro Cloud API base URL. Only used when storage="cloud".
+        cloud_api_url: Sylo Cloud API base URL. Only used when storage="cloud".
         notifications: Notification channel configuration for approval gates.
-        **kwargs: Additional configuration passed to LuroConfig.
+        **kwargs: Additional configuration passed to SyloConfig.
 
     Raises:
-        LuroConfigError: If required configuration is missing or invalid.
+        SyloConfigError: If required configuration is missing or invalid.
 
     Example:
-        >>> import luro
-        >>> luro.init(project="my-project")
+        >>> import sylo
+        >>> sylo.init(project="my-project")
 
         >>> # With cloud sync
-        >>> luro.init(
+        >>> sylo.init(
         ...     project="my-project",
-        ...     api_key="luro_xxx",
+        ...     api_key="sylo_xxx",
         ...     environment="production",
         ...     storage="cloud",
         ... )
     """
     try:
-        config = LuroConfig(
+        config = SyloConfig(
             project=project,  # type: ignore[arg-type]
             api_key=api_key,
             environment=environment,  # type: ignore[arg-type]
@@ -138,22 +152,22 @@ def init(
             **kwargs,
         )
     except Exception as exc:
-        raise LuroConfigError(f"Invalid Luro configuration: {exc}") from exc
+        raise SyloConfigError(f"Invalid Sylo configuration: {exc}") from exc
 
     set_config(config)
 
     # Set up logging for development mode
-    luro_logger = logging.getLogger("luro")
-    if config.is_development and not luro_logger.handlers:
+    sylo_logger = logging.getLogger("sylo")
+    if config.is_development and not sylo_logger.handlers:
         handler = logging.StreamHandler()
         handler.setFormatter(
-            logging.Formatter("%(levelname)s [luro] %(message)s")
+            logging.Formatter("%(levelname)s [sylo] %(message)s")
         )
-        luro_logger.addHandler(handler)
-        luro_logger.setLevel(logging.INFO)
+        sylo_logger.addHandler(handler)
+        sylo_logger.setLevel(logging.INFO)
 
-    luro_logger.info(
-        "Luro initialized — project=%s, env=%s, storage=%s",
+    sylo_logger.info(
+        "Sylo initialized — project=%s, env=%s, storage=%s",
         config.project,
         config.environment,
         config.storage,
@@ -167,7 +181,7 @@ def pipeline(
 ) -> Pipeline:
     """Create a pipeline context manager.
 
-    This is the core primitive of Luro. Wrap your agent pipeline
+    This is the core primitive of Sylo. Wrap your agent pipeline
     with this context manager to get automatic execution tracking,
     checkpointing, and audit logging.
 
@@ -180,11 +194,11 @@ def pipeline(
         An async context manager that tracks the pipeline execution.
 
     Example:
-        >>> async with luro.pipeline("my-pipeline", version="1.0") as pipe:
+        >>> async with sylo.pipeline("my-pipeline", version="1.0") as pipe:
         ...     result = await my_agent_function(inputs)
         ...     print(f"Execution ID: {pipe.execution_id}")
 
     Raises:
-        LuroConfigError: If luro.init() has not been called.
+        SyloConfigError: If sylo.init() has not been called.
     """
     return Pipeline(name=name, version=version, metadata=metadata)

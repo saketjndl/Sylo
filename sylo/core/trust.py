@@ -1,7 +1,7 @@
-"""Trust Broker for Luro SDK.
+"""Trust Broker for Sylo SDK.
 
 Enforces runtime permission sandboxing on agent steps.
-Steps declare their permissions using the @luro.trust() decorator.
+Steps declare their permissions using the @sylo.trust() decorator.
 Accesses to resources are checked at runtime via ctx.access().
 """
 
@@ -11,9 +11,9 @@ import functools
 import logging
 from typing import Any, Callable, Literal
 
-from luro.exceptions import LuroPermissionError
+from sylo.exceptions import SyloPermissionError
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
 
 def trust(
@@ -37,8 +37,8 @@ def trust(
         Decorated function with trust declarations attached.
 
     Example:
-        @luro.step("send-email")
-        @luro.trust(
+        @sylo.step("send-email")
+        @sylo.trust(
             can_read=["gmail.messages", "context.user_email"],
             can_write=["gmail.drafts"],
             can_execute=["gmail.send"]
@@ -57,14 +57,15 @@ def trust(
     for action, resources in declarations.items():
         if "*" in resources:
             logger.warning(
-                "Luro Trust: Wildcard '*' permission declared for '%s' action. "
+                "Sylo Trust: Wildcard '*' permission declared for '%s' action. "
                 "This allows unrestricted access.",
                 action,
             )
 
     def decorator(func: Callable) -> Callable:
         # Attach permissions to the function so they can be introspected
-        func._luro_trust_declarations = declarations  # type: ignore[attr-defined]
+        func._sylo_trust_declarations = declarations  # type: ignore[attr-defined]
+        func._luro_trust_declarations = declarations  # backwards compat
         return func
 
     return decorator

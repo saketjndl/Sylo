@@ -1,4 +1,4 @@
-"""Shared test fixtures for the Luro SDK test suite."""
+"""Shared test fixtures for the Sylo SDK test suite."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-import luro
-from luro.config import reset_config
-from luro.storage.local_store import LocalStorage
+import sylo
+from sylo.config import reset_config
+from sylo.storage.local_store import LocalStorage
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +19,11 @@ def _clean_config():
     reset_config()
     # Clear any env vars that might interfere
     env_vars = [
+        "SYLO_API_KEY",
+        "SYLO_PROJECT",
+        "SYLO_ENVIRONMENT",
+        "SYLO_STORAGE",
+        "SYLO_REDIS_URL",
         "LURO_API_KEY",
         "LURO_PROJECT",
         "LURO_ENVIRONMENT",
@@ -39,7 +44,7 @@ def _clean_config():
 @pytest.fixture
 def tmp_storage_dir(tmp_path: Path) -> Path:
     """Provide a temporary directory for local storage tests."""
-    storage_dir = tmp_path / "luro_test_storage"
+    storage_dir = tmp_path / "sylo_test_storage"
     storage_dir.mkdir()
     return storage_dir
 
@@ -51,8 +56,8 @@ def local_storage(tmp_storage_dir: Path) -> LocalStorage:
 
 
 @pytest.fixture
-def init_luro(tmp_storage_dir: Path):
-    """Initialize Luro with local storage in a temp directory.
+def init_sylo(tmp_storage_dir: Path):
+    """Initialize Sylo with local storage in a temp directory.
 
     Returns a callable so tests can customize init params.
     """
@@ -64,12 +69,15 @@ def init_luro(tmp_storage_dir: Path):
             "storage": "local",
         }
         defaults.update(kwargs)
-        luro.init(**defaults)
+        sylo.init(**defaults)
         # Override the storage root to use temp dir
-        from luro.config import get_config
-        from luro.storage.local_store import LocalStorage
-
-        # We need to patch the storage factory for this test
+        from sylo.config import get_config
         return get_config()
 
     return _init
+
+
+@pytest.fixture
+def init_luro(init_sylo):
+    """Backwards compatibility fixture alias."""
+    return init_sylo

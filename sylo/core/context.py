@@ -1,4 +1,4 @@
-"""Luro Context object — passed into every @luro.step function.
+"""Sylo Context object — passed into every @sylo.step function.
 
 The Context carries execution state, provides access to prior step
 outputs, and enforces permission-checked resource access (Brief 03 — Trust Broker).
@@ -9,10 +9,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from luro.exceptions import LuroPermissionError
-from luro.core.trust import check_permission
+from sylo.exceptions import SyloPermissionError
+from sylo.core.trust import check_permission
 
-logger = logging.getLogger("luro")
+logger = logging.getLogger("sylo")
 
 
 class Context:
@@ -46,7 +46,7 @@ class Context:
         self._current_step_name: str | None = None
         # Internal: tracks resource accesses for audit log
         self._resource_accesses: list[dict[str, Any]] = []
-        # Internal: trust declarations set by @luro.trust
+        # Internal: trust declarations set by @sylo.trust
         self._trust_declarations: dict[str, list[str]] | None = None
         # Internal: tracks which declared permissions were actually used
         self._permissions_used: set[tuple[str, str]] = set()  # set of (action, resource)
@@ -82,7 +82,7 @@ class Context:
         """Access an external resource through the permission-checked context.
 
         This method is the gateway for all external resource access.
-        It checks declared permissions at runtime if @luro.trust is used.
+        It checks declared permissions at runtime if @sylo.trust is used.
 
         Args:
             resource: Resource identifier in "service.resource" format.
@@ -94,10 +94,10 @@ class Context:
             The result of calling handler(params).
 
         Raises:
-            LuroPermissionError: If the step does not have permission to access the resource.
+            SyloPermissionError: If the step does not have permission to access the resource.
         """
         # Import to avoid circular imports
-        from luro.core.pipeline import _current_pipeline
+        from sylo.core.pipeline import _current_pipeline
 
         pipeline = _current_pipeline.get(None)
 
@@ -129,8 +129,8 @@ class Context:
                         },
                     )
 
-                raise LuroPermissionError(
-                    f"Luro Trust: Step '{self._current_step_name}' attempted to {action} "
+                raise SyloPermissionError(
+                    f"Sylo Trust: Step '{self._current_step_name}' attempted to {action} "
                     f"undeclared resource '{resource}'."
                 )
 

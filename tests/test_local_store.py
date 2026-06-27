@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from luro.models import (
+from sylo.models import (
     AuditEvent,
     Checkpoint,
     CheckpointStatus,
     ExecutionRecord,
     ExecutionStatus,
 )
-from luro.storage.local_store import LocalStorage
+from sylo.storage.local_store import LocalStorage
 
 
 class TestLocalStorageExecution:

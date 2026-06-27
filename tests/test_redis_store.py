@@ -1,7 +1,7 @@
 """Tests for the Redis storage backend.
 
 These tests use fakeredis to mock the Redis connection.
-To test against a real Redis instance, set LURO_TEST_REDIS_URL.
+To test against a real Redis instance, set SYLO_TEST_REDIS_URL.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from luro.models import (
+from sylo.models import (
     AuditEvent,
     Checkpoint,
     ExecutionRecord,
@@ -26,7 +26,7 @@ async def redis_storage():
     """Provide a RedisStorage instance backed by fakeredis."""
     import fakeredis.aioredis
 
-    from luro.storage.redis_store import RedisStorage
+    from sylo.storage.redis_store import RedisStorage
 
     fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     storage = RedisStorage(redis_client=fake_redis)

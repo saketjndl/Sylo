@@ -1,33 +1,35 @@
 <div align="center">
 
-# Luro
+<img src="sylo.png" alt="Sylo Logo" width="180"/>
+
+# Sylo
 
 ### The Production Operating Layer for AI Agents
 
 **Ship fault-tolerant, compliant, and controllable autonomous agent pipelines.**  
 Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop approval gates, and immutable audit logs to your existing Python agents in 3 lines of code.
 
-[![PyPI - Version](https://img.shields.io/pypi/v/luro-sdk.svg?style=flat-square&color=007ec6)](https://pypi.org/project/luro-sdk/)
+[![PyPI - Version](https://img.shields.io/pypi/v/sylo-sdk.svg?style=flat-square&color=007ec6)](https://pypi.org/project/sylo-sdk/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-101%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Luro)
+[![Tests](https://img.shields.io/badge/Tests-101%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
 [![Type Checked](https://img.shields.io/badge/Type%20Checked-Pydantic%20v2-8A2BE2.svg?style=flat-square)](https://docs.pydantic.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-[Documentation](https://docs.luro.dev) · [Quickstart](#quickstart) · [Core Features](#core-features) · [Storage Backends](#storage-backends) · [Discord](https://discord.gg/luro)
+[Documentation](https://docs.sylo.dev) · [Quickstart](#quickstart) · [Core Features](#core-features) · [Storage Backends](#storage-backends) · [Discord](https://discord.gg/sylo)
 
 </div>
 
 ---
 
-## ⚡ Why Luro?
+## ⚡ Why Sylo?
 
 When autonomous AI agents move from local prototypes to production environments, unexpected edge cases inevitably arise: API rate limits trigger crashes, hallucinations lead to unauthorized resource access, or destructive actions fire without oversight.
 
-**Luro wraps your existing workflows (LangGraph, CrewAI, OpenAI Agents SDK, or vanilla Python) with mission-critical reliability and safety rails:**
+**Sylo wraps your existing workflows (LangGraph, CrewAI, OpenAI Agents SDK, or vanilla Python) with mission-critical reliability and safety rails:**
 
-| Challenge in Production | Without Luro | With Luro SDK |
+| Challenge in Production | Without Sylo | With Sylo SDK |
 | :--- | :--- | :--- |
-| **Pipeline Failures & Crashes** | A 5-step workflow crashes at step 4 due to an API timeout. You restart from step 1, burning duplicated LLM tokens and wasting minutes. | **Instant Checkpoint Recovery**. Luro automatically resumes execution exactly at step 4, returning cached results for steps 1–3 and saving up to 90% in token costs. |
+| **Pipeline Failures & Crashes** | A 5-step workflow crashes at step 4 due to an API timeout. You restart from step 1, burning duplicated LLM tokens and wasting minutes. | **Instant Checkpoint Recovery**. Sylo automatically resumes execution exactly at step 4, returning cached results for steps 1–3 and saving up to 90% in token costs. |
 | **Agent Over-Privilege & Leaks** | An autonomous email assistant hallucinates and accesses internal customer databases or file systems it shouldn't touch. | **Zero-Trust Runtime Enforcement**. Declare granular permissions (`can_read`, `can_write`) per step. Unauthorized access attempts are blocked and logged instantly. |
 | **Irreversible Destructive Actions** | An agent deletes customer records, initiates financial transfers, or modifies production databases automatically without notice. | **Human Approval Gates**. Execution automatically pauses at defined gates, dispatching Slack/Email/Webhook notifications and waiting for explicit human sign-off. |
 | **Compliance & Traceability** | Debugging agent behavior requires sifting through scattered text logs with no standardized cost metrics or audit trails. | **Immutable Audit Logging**. Every step, retry, cost estimate, and permission check produces standardized JSONL or Redis Stream audit records. |
@@ -36,17 +38,17 @@ When autonomous AI agents move from local prototypes to production environments,
 
 ## 🏗️ Architecture & Data Flow
 
-Luro acts as an asynchronous middleware layer between your pipeline logic and your infrastructure storage.
+Sylo acts as an asynchronous middleware layer between your pipeline logic and your infrastructure storage.
 
 ```mermaid
 graph TD
     subgraph App [Your Application Pipeline]
-        P[luro.pipeline context] --> S1["@luro.step: Fetch Data"]
-        S1 --> S2["@luro.step + @luro.trust: Transform & Access API"]
-        S2 --> S3["@luro.step + @luro.requires_approval: Execute Action"]
+        P[sylo.pipeline context] --> S1["@sylo.step: Fetch Data"]
+        S1 --> S2["@sylo.step + @sylo.trust: Transform & Access API"]
+        S2 --> S3["@sylo.step + @sylo.requires_approval: Execute Action"]
     end
 
-    subgraph Core [Luro Core Engine]
+    subgraph Core [Sylo Core Engine]
         C[Checkpoint Engine]
         T[Trust & Security Broker]
         A[Approval Gate Engine]
@@ -55,7 +57,7 @@ graph TD
     subgraph Store [Persistence Layer]
         LStore[(Local Disk JSONL)]
         RStore[(Redis / Streams)]
-        CStore[(Luro Cloud API)]
+        CStore[(Sylo Cloud API)]
     end
 
     S1 <-->|Read Cache / Save State| C
@@ -73,16 +75,16 @@ graph TD
 
 ### 1. Installation
 
-Install the Luro SDK via pip:
+Install the Sylo SDK via pip:
 
 ```bash
-pip install luro-sdk
+pip install sylo-sdk
 ```
 
 For Redis storage support in production environments:
 
 ```bash
-pip install "luro-sdk[redis]"
+pip install "sylo-sdk[redis]"
 ```
 
 ### 2. Five-Minute Integration
@@ -92,28 +94,28 @@ Here is a complete, production-ready pipeline demonstrating **Checkpointing**, *
 ```python
 import asyncio
 import httpx
-import luro
+import sylo
 
-# 1. Initialize Luro SDK (defaults to local disk storage in development)
-luro.init(project="customer-operations", environment="development")
+# 1. Initialize Sylo SDK (defaults to local disk storage in development)
+sylo.init(project="customer-operations", environment="development")
 
 
 # 2. Define pipeline steps using decorators
-@luro.step("fetch-customer-data", max_retries=3, retry_delay=1.0)
-@luro.trust(can_read=["crm.customers"])
-async def fetch_customer(ctx: luro.Context, customer_id: str) -> dict:
+@sylo.step("fetch-customer-data", max_retries=3, retry_delay=1.0)
+@sylo.trust(can_read=["crm.customers"])
+async def fetch_customer(ctx: sylo.Context, customer_id: str) -> dict:
     """Fetch customer details through permission-checked context access."""
     
     async def _api_call():
         # Simulate external API call
         return {"id": customer_id, "name": "Acme Corp", "status": "inactive"}
 
-    # Luro verifies at runtime that "crm.customers" is allowed for reading
+    # Sylo verifies at runtime that "crm.customers" is allowed for reading
     return await ctx.access("crm.customers", action="read", handler=_api_call)
 
 
-@luro.step("analyze-churn-risk")
-async def analyze_churn(ctx: luro.Context) -> dict:
+@sylo.step("analyze-churn-risk")
+async def analyze_churn(ctx: sylo.Context) -> dict:
     """Analyze risk using previous step outputs."""
     # Retrieve cached output from the previous step without re-running it
     customer = ctx.get_output("fetch-customer-data")
@@ -124,8 +126,8 @@ async def analyze_churn(ctx: luro.Context) -> dict:
     return {"customer_id": customer["id"], "risk_score": 0.89, "recommendation": "terminate"}
 
 
-@luro.step("delete-account")
-@luro.requires_approval(
+@sylo.step("delete-account")
+@sylo.requires_approval(
     title="Confirm Account Deletion",
     description="About to permanently delete account for {customer_id} (Risk Score: {risk_score})",
     action_class="destructive",
@@ -134,7 +136,7 @@ async def analyze_churn(ctx: luro.Context) -> dict:
     notify=["slack", "email"],
     metadata_keys=["customer_id", "risk_score"]
 )
-async def delete_account(ctx: luro.Context) -> dict:
+async def delete_account(ctx: sylo.Context) -> dict:
     """Dangerous action guarded by a human approval gate."""
     customer_id = ctx.metadata["customer_id"]
     return {"status": "deleted", "customer_id": customer_id}
@@ -142,7 +144,7 @@ async def delete_account(ctx: luro.Context) -> dict:
 
 # 3. Run the pipeline context
 async def main():
-    async with luro.pipeline("churn-remediation", metadata={"customer_id": "cust_8842"}) as pipe:
+    async with sylo.pipeline("churn-remediation", metadata={"customer_id": "cust_8842"}) as pipe:
         data = await fetch_customer(pipe.context, "cust_8842")
         analysis = await analyze_churn(pipe.context)
         
@@ -158,10 +160,10 @@ if __name__ == "__main__":
 
 ### Console Output During Execution
 
-When reaching the approval gate in local development mode, Luro automatically spins up a background HTTP server on port `7749` and prints a clean, actionable prompt to your terminal:
+When reaching the approval gate in local development mode, Sylo automatically spins up a background HTTP server on port `7749` and prints a clean, actionable prompt to your terminal:
 
 ```text
-⏸ Luro Approval Required
+⏸ Sylo Approval Required
   Pipeline: churn-remediation
   Step: delete-account
   Action: About to permanently delete account for cust_8842 (Risk Score: 0.89) (DESTRUCTIVE)
@@ -181,11 +183,11 @@ Clicking either URL instantly registers your decision, logs the audit event, and
 
 ### 1. 🔄 Smart Checkpointing & Cost Tracking
 
-Wrap any async or sync function with `@luro.step("step-name")`. Every successful execution is serialized and persisted to storage. If a downstream step crashes or raises an exception, subsequent reruns skip completed steps instantly.
+Wrap any async or sync function with `@sylo.step("step-name")`. Every successful execution is serialized and persisted to storage. If a downstream step crashes or raises an exception, subsequent reruns skip completed steps instantly.
 
 ```python
-@luro.step("generate-report", max_retries=5, retry_delay=2.0)
-async def generate_report(ctx: luro.Context) -> dict:
+@sylo.step("generate-report", max_retries=5, retry_delay=2.0)
+async def generate_report(ctx: sylo.Context) -> dict:
     # Access outputs from earlier steps safely
     raw_data = ctx.get_output("fetch-data")
     
@@ -202,18 +204,18 @@ async def generate_report(ctx: luro.Context) -> dict:
 Prevent agents from performing unauthorized network requests or file modifications by declaring explicit capability manifests.
 
 ```python
-@luro.step("send-slack-notification")
-@luro.trust(
+@sylo.step("send-slack-notification")
+@sylo.trust(
     can_read=["slack.channels", "users.profile"],
     can_write=["slack.messages"],
     can_execute=[],
     can_delete=[]
 )
-async def notify_team(ctx: luro.Context):
+async def notify_team(ctx: sylo.Context):
     # This succeeds: matches declared can_write pattern
     await ctx.access("slack.messages", action="write", handler=post_message)
     
-    # This raises LuroPermissionError and logs an audit violation immediately!
+    # This raises SyloPermissionError and logs an audit violation immediately!
     await ctx.access("aws.s3.buckets", action="delete", handler=delete_bucket)
 ```
 
@@ -222,7 +224,7 @@ async def notify_team(ctx: luro.Context):
 Guard destructive, financial, or external actions behind asynchronous human reviews.
 
 ```python
-@luro.requires_approval(
+@sylo.requires_approval(
     title="Wire Transfer Request",
     description="Transferring ${amount} to account {recipient}",
     action_class="financial",
@@ -233,40 +235,40 @@ Guard destructive, financial, or external actions behind asynchronous human revi
 )
 ```
 
-* **Programmatic Fallbacks**: You can also approve or reject requests programmatically from external backend webhooks or CLI scripts via `await luro.approve(approval_id, decided_by="supervisor")`.
+* **Programmatic Fallbacks**: You can also approve or reject requests programmatically from external backend webhooks or CLI scripts via `await sylo.approve(approval_id, decided_by="supervisor")`.
 
 ### 4. 📜 Immutable Audit Trails
 
 Every execution maintains an append-only sequence of immutable events (`PIPELINE_STARTED`, `STEP_COMPLETED`, `PERMISSION_VIOLATION`, `APPROVAL_REQUESTED`, `APPROVAL_DECISION`).
 
-In local mode, logs are formatted as standard JSONL (`~/.luro/executions/{id}/audit.jsonl`). In production Redis storage, events are streamed to high-throughput **Redis Streams** (`XRANGE`), providing complete auditability for SOC2 and enterprise compliance.
+In local mode, logs are formatted as standard JSONL (`~/.sylo/executions/{id}/audit.jsonl`). In production Redis storage, events are streamed to high-throughput **Redis Streams** (`XRANGE`), providing complete auditability for SOC2 and enterprise compliance.
 
 ---
 
 ## 🗄️ Storage Backends
 
-Luro provides a standardized interface across multiple storage engines, allowing you to develop locally without infrastructure overhead and deploy to production seamlessly.
+Sylo provides a standardized interface across multiple storage engines, allowing you to develop locally without infrastructure overhead and deploy to production seamlessly.
 
 | Storage Backend | Configuration | Use Case & Persistence Guarantees |
 | :--- | :--- | :--- |
-| **Local File Store** *(Default)* | `storage="local"` | Perfect for local development and CI testing. Stores execution manifests, checkpoints, and JSONL audit logs under `~/.luro/executions/`. Fails silently on network errors so development workflows are never blocked. |
+| **Local File Store** *(Default)* | `storage="local"` | Perfect for local development and CI testing. Stores execution manifests, checkpoints, and JSONL audit logs under `~/.sylo/executions/`. Fails silently on network errors so development workflows are never blocked. |
 | **Redis & Redis Streams** | `storage="redis"` | Built for high-concurrency production workloads. Uses Redis key-value storage for state checkpoints and append-only Redis Streams for real-time audit event distribution. |
-| **Luro Cloud API** | `storage="cloud"` | Enterprise managed cloud platform. Syncs executions, approval queues, and telemetry directly to your centralized Luro Cloud dashboard. |
+| **Sylo Cloud API** | `storage="cloud"` | Enterprise managed cloud platform. Syncs executions, approval queues, and telemetry directly to your centralized Sylo Cloud dashboard. |
 
 ---
 
 ## ⚙️ Configuration Matrix
 
-Initialize Luro programmatically at application startup or via standard environment variables:
+Initialize Sylo programmatically at application startup or via standard environment variables:
 
 ### Programmatic Configuration
 
 ```python
-import luro
+import sylo
 
-luro.init(
+sylo.init(
     project="autonomous-researcher",
-    api_key="luro_live_xxxxx",
+    api_key="sylo_live_xxxxx",
     environment="production",           # "development" | "staging" | "production"
     storage="redis",                    # "local" | "redis" | "cloud"
     redis_url="redis://redis-master:6379/0",
@@ -281,33 +283,33 @@ luro.init(
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `LURO_PROJECT` | Identifier for the pipeline group or application | `default` |
-| `LURO_ENVIRONMENT` | Current runtime environment (`development`, `production`) | `development` |
-| `LURO_STORAGE` | Storage backend driver (`local`, `redis`, `cloud`) | `local` |
-| `LURO_API_KEY` | API key when communicating with Luro Cloud | `None` |
-| `LURO_REDIS_URL` | Connection string for Redis backend | `redis://localhost:6379` |
+| `SYLO_PROJECT` | Identifier for the pipeline group or application | `default` |
+| `SYLO_ENVIRONMENT` | Current runtime environment (`development`, `production`) | `development` |
+| `SYLO_STORAGE` | Storage backend driver (`local`, `redis`, `cloud`) | `local` |
+| `SYLO_API_KEY` | API key when communicating with Sylo Cloud | `None` |
+| `SYLO_REDIS_URL` | Connection string for Redis backend | `redis://localhost:6379` |
 
 ---
 
 ## 🔌 Framework Integrations
 
-Luro is designed to wrap around your agent code without replacing your framework.
+Sylo is designed to wrap around your agent code without replacing your framework.
 
 ### LangGraph Integration
 
 ```python
 from langgraph.graph import StateGraph
-import luro
+import sylo
 
-# Define standard LangGraph nodes wrapped in Luro steps
-@luro.step("research-node")
+# Define standard LangGraph nodes wrapped in Sylo steps
+@sylo.step("research-node")
 async def research_step(state: dict) -> dict:
     # Perform agent logic...
     return {"findings": "..."}
 
 async def run_graph(initial_state: dict):
-    # Wrap graph execution inside Luro pipeline context
-    async with luro.pipeline("langgraph-researcher") as pipe:
+    # Wrap graph execution inside Sylo pipeline context
+    async with sylo.pipeline("langgraph-researcher") as pipe:
         # Pass pipe.context or state freely
         result = await research_step(initial_state)
         return result
@@ -321,8 +323,8 @@ We welcome contributions from the open-source community!
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/saketjndl/Luro.git
-cd Luro
+git clone https://github.com/saketjndl/Sylo.git
+cd Sylo
 
 # 2. Install dependencies in editable mode
 pip install -e ".[dev,redis]"
@@ -335,9 +337,9 @@ pytest tests/ -v
 
 ## 📄 License
 
-Luro is open-source software licensed under the [MIT License](LICENSE).
+Sylo is open-source software licensed under the [MIT License](LICENSE).
 
 <div align="center">
-  <p>Built with ❤️ by the Luro Engineering Team.</p>
-  <p><a href="https://docs.luro.dev">Documentation</a> • <a href="https://github.com/saketjndl/Luro/issues">Report an Issue</a> • <a href="https://discord.gg/luro">Join Discord</a></p>
+  <p>Built with ❤️ by the Sylo Engineering Team.</p>
+  <p><a href="https://docs.sylo.dev">Documentation</a> • <a href="https://github.com/saketjndl/Sylo/issues">Report an Issue</a> • <a href="https://discord.gg/sylo">Join Discord</a></p>
 </div>
