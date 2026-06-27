@@ -29,6 +29,7 @@ from luro.config import LuroConfig, reset_config, set_config
 from luro.core.checkpoint import step
 from luro.core.context import Context
 from luro.core.pipeline import Pipeline
+from luro.core.trust import trust
 from luro.exceptions import (
     LuroApprovalRejectedError,
     LuroCheckpointExpiredError,
@@ -48,6 +49,8 @@ __all__ = [
     # Checkpoint engine (Brief 02)
     "step",
     "Context",
+    # Trust broker (Brief 03)
+    "trust",
     # Models
     "ExecutionRecord",
     "Checkpoint",

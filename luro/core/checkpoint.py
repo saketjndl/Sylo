@@ -23,6 +23,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from luro.config import get_config
 from luro.core.context import Context
 from luro.core.costs import estimate_cost, extract_token_usage
 from luro.models import (
@@ -180,47 +181,96 @@ def step(
                 data={"step_index": step_index, "max_retries": max_retries},
             )
 
+            # Setup trust declarations for the step run
+            ctx._current_step_name = name
+            ctx._trust_declarations = getattr(func, "_luro_trust_declarations", None)
+            ctx._permissions_used.clear()
+            ctx._violations_attempted = 0
+
+            config = get_config()
+            if ctx._trust_declarations is None and config.is_production:
+                logger.warning(
+                    "⚠ Luro Trust: Step \"%s\" has no trust declaration. Running without enforcement.",
+                    name,
+                )
+
             last_error: Exception | None = None
             retry_count = 0
             result: Any = None
             step_started = datetime.now(timezone.utc)
 
-            for attempt in range(max_retries + 1):
-                try:
-                    attempt_start = datetime.now(timezone.utc)
-                    result = await func(ctx, *args, **kwargs)
-                    last_error = None
-                    break  # Success
-                except Exception as exc:
-                    last_error = exc
-                    retry_count = attempt + 1
-
-                    if attempt < max_retries:
-                        delay = retry_delay * (2**attempt)
-                        logger.warning(
-                            "Step '%s' failed (attempt %d/%d), retrying in %.1fs: %s",
-                            name,
-                            attempt + 1,
-                            max_retries + 1,
-                            delay,
-                            exc,
-                        )
-
-                        await pipeline._emit_audit_event(
-                            event_type="STEP_RETRIED",
-                            step_name=name,
-                            data={
-                                "attempt": attempt + 1,
-                                "max_retries": max_retries,
-                                "error": str(exc),
-                                "retry_delay": delay,
-                            },
-                        )
-
-                        await asyncio.sleep(delay)
-                    else:
-                        # All retries exhausted
+            try:
+                for attempt in range(max_retries + 1):
+                    try:
+                        attempt_start = datetime.now(timezone.utc)
+                        result = await func(ctx, *args, **kwargs)
+                        last_error = None
+                        break  # Success
+                    except Exception as exc:
+                        last_error = exc
                         retry_count = attempt + 1
+
+                        if attempt < max_retries:
+                            delay = retry_delay * (2**attempt)
+                            logger.warning(
+                                "Step '%s' failed (attempt %d/%d), retrying in %.1fs: %s",
+                                name,
+                                attempt + 1,
+                                max_retries + 1,
+                                delay,
+                                exc,
+                            )
+
+                            await pipeline._emit_audit_event(
+                                event_type="STEP_RETRIED",
+                                step_name=name,
+                                data={
+                                    "attempt": attempt + 1,
+                                    "max_retries": max_retries,
+                                    "error": str(exc),
+                                    "retry_delay": delay,
+                                },
+                            )
+
+                            await asyncio.sleep(delay)
+                        else:
+                            # All retries exhausted
+                            retry_count = attempt + 1
+            finally:
+                # This always runs after step attempts are complete, whether success or fail
+                # Emit trust summary and warnings if trust was active
+                if ctx._trust_declarations is not None:
+                    declared_list = []
+                    used_list = []
+                    unused_list = []
+
+                    for action, patterns in ctx._trust_declarations.items():
+                        for pattern in patterns:
+                            perm_str = f"{action}:{pattern}"
+                            declared_list.append(perm_str)
+                            if (action, pattern) in ctx._permissions_used:
+                                used_list.append(perm_str)
+                            else:
+                                unused_list.append(perm_str)
+                                # Log least privilege warning in dev mode
+                                if config.is_development:
+                                    logger.warning(
+                                        "⚠ Luro Trust: Step \"%s\" declared \"%s\" but never accessed it.\n"
+                                        "  Consider removing unused permissions.",
+                                        name,
+                                        pattern,
+                                    )
+
+                    await pipeline._emit_audit_event(
+                        event_type="TRUST_SUMMARY",
+                        step_name=name,
+                        data={
+                            "declared_permissions": declared_list,
+                            "permissions_used": used_list,
+                            "permissions_unused": unused_list,
+                            "violations_attempted": ctx._violations_attempted,
+                        },
+                    )
 
             step_ended = datetime.now(timezone.utc)
             duration_ms = int(

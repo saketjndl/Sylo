@@ -1,14 +1,16 @@
 """Luro Context object — passed into every @luro.step function.
 
 The Context carries execution state, provides access to prior step
-outputs, and will later support permission-checked resource access
-(Brief 03 — Trust Broker).
+outputs, and enforces permission-checked resource access (Brief 03 — Trust Broker).
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Literal
+
+from luro.exceptions import LuroPermissionError
+from luro.core.trust import check_permission
 
 logger = logging.getLogger("luro")
 
@@ -40,10 +42,16 @@ class Context:
         self.previous_outputs: dict[str, Any] = {}
         self.metadata: dict[str, Any] = metadata or {}
 
-        # Internal: tracks resource accesses for trust broker (Brief 03)
+        # Internal: tracks active step name during execution
+        self._current_step_name: str | None = None
+        # Internal: tracks resource accesses for audit log
         self._resource_accesses: list[dict[str, Any]] = []
-        # Internal: trust declarations set by @luro.trust (Brief 03)
+        # Internal: trust declarations set by @luro.trust
         self._trust_declarations: dict[str, list[str]] | None = None
+        # Internal: tracks which declared permissions were actually used
+        self._permissions_used: set[tuple[str, str]] = set()  # set of (action, resource)
+        # Internal: count of blocked permission attempts
+        self._violations_attempted: int = 0
 
     def get_output(self, step_name: str) -> Any:
         """Get the output of a previously completed step.
@@ -67,15 +75,14 @@ class Context:
     async def access(
         self,
         resource: str,
-        action: str = "read",
+        action: Literal["read", "write", "execute", "delete"] = "read",
         params: dict[str, Any] | None = None,
         handler: Any = None,
     ) -> Any:
         """Access an external resource through the permission-checked context.
 
         This method is the gateway for all external resource access.
-        In Brief 03 (Trust Broker), it enforces permission declarations.
-        For now, it records the access and calls the handler directly.
+        It checks declared permissions at runtime if @luro.trust is used.
 
         Args:
             resource: Resource identifier in "service.resource" format.
@@ -85,17 +92,74 @@ class Context:
 
         Returns:
             The result of calling handler(params).
+
+        Raises:
+            LuroPermissionError: If the step does not have permission to access the resource.
         """
+        # Import to avoid circular imports
+        from luro.core.pipeline import _current_pipeline
+
+        pipeline = _current_pipeline.get(None)
+
+        # Track the resource access attempt
         access_record = {
             "resource": resource,
             "action": action,
-            "step_name": None,  # Set by the step decorator
+            "step_name": self._current_step_name,
         }
         self._resource_accesses.append(access_record)
 
+        # If trust enforcement is declared, check it
+        if self._trust_declarations is not None:
+            allowed_patterns = self._trust_declarations.get(action, [])
+            permitted = check_permission(allowed_patterns, resource)
+
+            if not permitted:
+                self._violations_attempted += 1
+
+                # Record violation in audit log
+                if pipeline is not None:
+                    await pipeline._emit_audit_event(
+                        event_type="PERMISSION_VIOLATION",
+                        step_name=self._current_step_name,
+                        data={
+                            "resource": resource,
+                            "action": action,
+                            "declared_permissions": allowed_patterns,
+                        },
+                    )
+
+                raise LuroPermissionError(
+                    f"Luro Trust: Step '{self._current_step_name}' attempted to {action} "
+                    f"undeclared resource '{resource}'."
+                )
+
+            # Record that this specific permission pattern was used
+            # We match the resource to the declared patterns that allowed it
+            for pattern in allowed_patterns:
+                if check_permission([pattern], resource):
+                    self._permissions_used.add((action, pattern))
+
+            # Record successful check in audit log
+            if pipeline is not None:
+                await pipeline._emit_audit_event(
+                    event_type="PERMISSION_CHECKED",
+                    step_name=self._current_step_name,
+                    data={
+                        "resource": resource,
+                        "action": action,
+                        "status": "ALLOWED",
+                    },
+                )
+
+        # Call the actual handler
         if handler is not None:
-            if params:
-                return await handler(**params) if callable(handler) else handler
-            return await handler() if callable(handler) else handler
+            if callable(handler):
+                import inspect
+                res = handler(**params) if params else handler()
+                if inspect.isawaitable(res):
+                    return await res
+                return res
+            return handler
 
         return None
