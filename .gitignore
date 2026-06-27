@@ -38,3 +38,5 @@ htmlcov/
 
 # Confidential build brief — do NOT push
 LURO_BUILD_BRIEF.md
+snapshot_script.py
+PROJECT_SNAPSHOT.md
