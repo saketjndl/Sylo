@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 
 from luro.exceptions import LuroStorageError
-from luro.models import AuditEvent, Checkpoint, ExecutionRecord
+from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
 from luro.storage.base import LuroStorage
 
 logger = logging.getLogger("luro.storage.cloud")
@@ -213,6 +213,36 @@ class CloudStorage(LuroStorage):
             event.event_type,
             execution_id,
         )
+
+    async def save_approval_request(self, request: ApprovalRequest) -> None:
+        """Save an approval request to Luro Cloud."""
+        data = request.model_dump(mode="json")
+        await self._request("POST", "/v1/approvals", json_data=data)
+        logger.debug("Synced approval request %s to cloud", request.approval_id)
+
+    async def get_approval_request(self, approval_id: str) -> ApprovalRequest | None:
+        """Retrieve an approval request from Luro Cloud by approval ID."""
+        try:
+            data = await self._request("GET", f"/v1/approvals/{approval_id}")
+            if data is None:
+                return None
+            return ApprovalRequest.model_validate(data)
+        except LuroStorageError:
+            return None
+
+    async def get_approval_request_by_step(
+        self, execution_id: str, step_name: str
+    ) -> ApprovalRequest | None:
+        """Retrieve an approval request from Luro Cloud by step name."""
+        try:
+            data = await self._request(
+                "GET", f"/v1/executions/{execution_id}/approvals/{step_name}"
+            )
+            if data is None:
+                return None
+            return ApprovalRequest.model_validate(data)
+        except LuroStorageError:
+            return None
 
     async def close(self) -> None:
         """Close the HTTP client."""

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any, TYPE_CHECKING
 
-from luro.models import AuditEvent, Checkpoint, ExecutionRecord
+from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
 from luro.storage.base import LuroStorage
 
 if TYPE_CHECKING:
@@ -70,6 +70,12 @@ class RedisStorage(LuroStorage):
 
     def _pipeline_index_key(self, pipeline_name: str) -> str:
         return f"{PREFIX}:pipeline_executions:{pipeline_name}"
+
+    def _approval_key(self, approval_id: str) -> str:
+        return f"{PREFIX}:approval:{approval_id}"
+
+    def _approval_step_key(self, execution_id: str, step_name: str) -> str:
+        return f"{PREFIX}:approval_step:{execution_id}:{step_name}"
 
     async def save_execution(self, record: ExecutionRecord) -> None:
         """Save an execution record to Redis."""
@@ -177,6 +183,35 @@ class RedisStorage(LuroStorage):
             events.append(AuditEvent.model_validate_json(event_json))
 
         return events
+
+    async def save_approval_request(self, request: ApprovalRequest) -> None:
+        """Save an approval request to Redis."""
+        client = await self._get_client()
+        data = request.model_dump_json()
+        await client.set(self._approval_key(request.approval_id), data)
+        await client.set(
+            self._approval_step_key(request.execution_id, request.step_name),
+            request.approval_id,
+        )
+        logger.debug("Saved approval request %s to Redis", request.approval_id)
+
+    async def get_approval_request(self, approval_id: str) -> ApprovalRequest | None:
+        """Retrieve an approval request from Redis by approval ID."""
+        client = await self._get_client()
+        data = await client.get(self._approval_key(approval_id))
+        if data is None:
+            return None
+        return ApprovalRequest.model_validate_json(data)
+
+    async def get_approval_request_by_step(
+        self, execution_id: str, step_name: str
+    ) -> ApprovalRequest | None:
+        """Retrieve an approval request from Redis by step name."""
+        client = await self._get_client()
+        approval_id = await client.get(self._approval_step_key(execution_id, step_name))
+        if approval_id is None:
+            return None
+        return await self.get_approval_request(approval_id)
 
     async def close(self) -> None:
         """Close the Redis connection."""

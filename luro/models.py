@@ -31,6 +31,15 @@ class CheckpointStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class ApprovalStatus(str, Enum):
+    """Status of a human approval request."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    TIMED_OUT = "TIMED_OUT"
+
+
 class TokenUsage(BaseModel):
     """Token usage for a single step, following the OpenAI/Anthropic format."""
 
@@ -89,6 +98,26 @@ class AuditEvent(BaseModel):
     duration_ms: int = 0
     token_usage: TokenUsage | None = None
     is_replay: bool = False
+
+
+class ApprovalRequest(BaseModel):
+    """A human approval gate request for an irreversible or dangerous action."""
+
+    approval_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    execution_id: str
+    pipeline_name: str
+    step_name: str
+    title: str
+    description: str
+    action_class: str
+    status: ApprovalStatus = ApprovalStatus.PENDING
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    decision_note: str | None = None
+    context_snapshot: dict[str, Any] = Field(default_factory=dict)
+    notify_channels: list[str] = Field(default_factory=list)
 
 
 class ExecutionRecord(BaseModel):

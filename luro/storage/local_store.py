@@ -18,7 +18,7 @@ import json
 import logging
 from pathlib import Path
 
-from luro.models import AuditEvent, Checkpoint, ExecutionRecord
+from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
 from luro.storage.base import LuroStorage
 
 logger = logging.getLogger("luro.storage.local")
@@ -62,6 +62,19 @@ class LocalStorage(LuroStorage):
     def _audit_file(self, execution_id: str) -> Path:
         """Get the path to an execution's audit log file."""
         return self._execution_dir(execution_id) / "audit.jsonl"
+
+    def _approval_dir(self, execution_id: str) -> Path:
+        """Get the approval directory for an execution."""
+        return self._execution_dir(execution_id) / "approvals"
+
+    def _approval_file(self, execution_id: str, step_name: str) -> Path:
+        """Get the path to a specific approval request file."""
+        safe_name = step_name.replace("/", "_").replace("\\", "_")
+        return self._approval_dir(execution_id) / f"{safe_name}.json"
+
+    def _approval_index_file(self, approval_id: str) -> Path:
+        """Get the path to an approval index file."""
+        return self._root / "_approvals" / f"{approval_id}.json"
 
     async def save_execution(self, record: ExecutionRecord) -> None:
         """Save an execution record as a JSON file."""
@@ -189,5 +202,56 @@ class LocalStorage(LuroStorage):
                 if line.strip():
                     events.append(AuditEvent.model_validate_json(line))
             return events
+
+        return await asyncio.to_thread(_read)
+
+    async def save_approval_request(self, request: ApprovalRequest) -> None:
+        """Save an approval request as a JSON file and index it."""
+
+        def _write() -> None:
+            path = self._approval_file(request.execution_id, request.step_name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(request.model_dump_json(indent=2), encoding="utf-8")
+
+            idx_path = self._approval_index_file(request.approval_id)
+            idx_path.parent.mkdir(parents=True, exist_ok=True)
+            idx_data = json.dumps(
+                {"execution_id": request.execution_id, "step_name": request.step_name}
+            )
+            idx_path.write_text(idx_data, encoding="utf-8")
+
+        await asyncio.to_thread(_write)
+        logger.debug("Saved approval request %s", request.approval_id)
+
+    async def get_approval_request(self, approval_id: str) -> ApprovalRequest | None:
+        """Load an approval request by ID using the index."""
+
+        def _read() -> ApprovalRequest | None:
+            idx_path = self._approval_index_file(approval_id)
+            if not idx_path.exists():
+                return None
+            try:
+                data = json.loads(idx_path.read_text(encoding="utf-8"))
+                exec_id = data["execution_id"]
+                step_name = data["step_name"]
+            except Exception:
+                return None
+            path = self._approval_file(exec_id, step_name)
+            if not path.exists():
+                return None
+            return ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8"))
+
+        return await asyncio.to_thread(_read)
+
+    async def get_approval_request_by_step(
+        self, execution_id: str, step_name: str
+    ) -> ApprovalRequest | None:
+        """Load an approval request by execution ID and step name."""
+
+        def _read() -> ApprovalRequest | None:
+            path = self._approval_file(execution_id, step_name)
+            if not path.exists():
+                return None
+            return ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8"))
 
         return await asyncio.to_thread(_read)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from luro.models import AuditEvent, Checkpoint, ExecutionRecord
+from luro.models import ApprovalRequest, AuditEvent, Checkpoint, ExecutionRecord
 
 
 class LuroStorage(ABC):
@@ -91,5 +91,41 @@ class LuroStorage(ABC):
         Args:
             execution_id: The UUID of the execution.
             event: The audit event to append.
+        """
+        ...
+
+    @abstractmethod
+    async def save_approval_request(self, request: ApprovalRequest) -> None:
+        """Save or update an approval request.
+
+        Args:
+            request: The approval request data to persist.
+        """
+        ...
+
+    @abstractmethod
+    async def get_approval_request(self, approval_id: str) -> ApprovalRequest | None:
+        """Retrieve an approval request by its unique approval ID.
+
+        Args:
+            approval_id: The UUID of the approval request.
+
+        Returns:
+            The approval request, or None if not found.
+        """
+        ...
+
+    @abstractmethod
+    async def get_approval_request_by_step(
+        self, execution_id: str, step_name: str
+    ) -> ApprovalRequest | None:
+        """Retrieve an approval request for a specific execution step.
+
+        Args:
+            execution_id: The UUID of the execution.
+            step_name: The name of the step.
+
+        Returns:
+            The approval request, or None if not found.
         """
         ...

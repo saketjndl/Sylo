@@ -26,6 +26,7 @@ import logging
 from typing import Any
 
 from luro.config import LuroConfig, reset_config, set_config
+from luro.core.approval import approve, reject, requires_approval
 from luro.core.checkpoint import step
 from luro.core.context import Context
 from luro.core.pipeline import Pipeline
@@ -38,7 +39,14 @@ from luro.exceptions import (
     LuroPermissionError,
     LuroStorageError,
 )
-from luro.models import AuditEvent, Checkpoint, ExecutionRecord, ExecutionStatus
+from luro.models import (
+    ApprovalRequest,
+    ApprovalStatus,
+    AuditEvent,
+    Checkpoint,
+    ExecutionRecord,
+    ExecutionStatus,
+)
 
 __version__ = "0.1.0"
 
@@ -51,9 +59,15 @@ __all__ = [
     "Context",
     # Trust broker (Brief 03)
     "trust",
+    # Approval gates (Brief 04)
+    "requires_approval",
+    "approve",
+    "reject",
     # Models
     "ExecutionRecord",
     "Checkpoint",
+    "ApprovalRequest",
+    "ApprovalStatus",
     "AuditEvent",
     "ExecutionStatus",
     # Exceptions

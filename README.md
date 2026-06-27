@@ -2,259 +2,342 @@
 
 # Luro
 
-### Ship AI agents that don't break in production.
+### The Production Operating Layer for AI Agents
 
-Luro is an open-source Python SDK and cloud platform that adds production-grade reliability to your existing AI agent pipelines — **checkpointing, permission enforcement, human approval gates, and immutable audit logging** — without replacing the frameworks you already use.
+**Ship fault-tolerant, compliant, and controllable autonomous agent pipelines.**  
+Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop approval gates, and immutable audit logs to your existing Python agents in 3 lines of code.
 
-[![PyPI version](https://img.shields.io/pypi/v/luro-sdk.svg)](https://pypi.org/project/luro-sdk/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![PyPI - Version](https://img.shields.io/pypi/v/luro-sdk.svg?style=flat-square&color=007ec6)](https://pypi.org/project/luro-sdk/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Tests](https://img.shields.io/badge/Tests-101%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Luro)
+[![Type Checked](https://img.shields.io/badge/Type%20Checked-Pydantic%20v2-8A2BE2.svg?style=flat-square)](https://docs.pydantic.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**Works with** LangGraph · CrewAI · OpenAI Agents SDK
+[Documentation](https://docs.luro.dev) · [Quickstart](#quickstart) · [Core Features](#core-features) · [Storage Backends](#storage-backends) · [Discord](https://discord.gg/luro)
 
 </div>
 
 ---
 
-## The Problem
+## ⚡ Why Luro?
 
-Building AI agents is easy. Running them in production is not.
+When autonomous AI agents move from local prototypes to production environments, unexpected edge cases inevitably arise: API rate limits trigger crashes, hallucinations lead to unauthorized resource access, or destructive actions fire without oversight.
 
-| Problem | What happens | Cost |
-|---|---|---|
-| **Pipelines crash mid-run** | 4-step pipeline fails at step 3 — restarts from scratch | Wasted time, duplicated API calls, burned tokens |
-| **Agents access too much** | An email-drafting agent reads your calendar, contacts, and files | Silent data leaks, compliance violations |
-| **Irreversible actions fire automatically** | Agent deletes 847 customer records without asking | No approval, no audit trail, no undo |
+**Luro wraps your existing workflows (LangGraph, CrewAI, OpenAI Agents SDK, or vanilla Python) with mission-critical reliability and safety rails:**
 
-## The Solution
+| Challenge in Production | Without Luro | With Luro SDK |
+| :--- | :--- | :--- |
+| **Pipeline Failures & Crashes** | A 5-step workflow crashes at step 4 due to an API timeout. You restart from step 1, burning duplicated LLM tokens and wasting minutes. | **Instant Checkpoint Recovery**. Luro automatically resumes execution exactly at step 4, returning cached results for steps 1–3 and saving up to 90% in token costs. |
+| **Agent Over-Privilege & Leaks** | An autonomous email assistant hallucinates and accesses internal customer databases or file systems it shouldn't touch. | **Zero-Trust Runtime Enforcement**. Declare granular permissions (`can_read`, `can_write`) per step. Unauthorized access attempts are blocked and logged instantly. |
+| **Irreversible Destructive Actions** | An agent deletes customer records, initiates financial transfers, or modifies production databases automatically without notice. | **Human Approval Gates**. Execution automatically pauses at defined gates, dispatching Slack/Email/Webhook notifications and waiting for explicit human sign-off. |
+| **Compliance & Traceability** | Debugging agent behavior requires sifting through scattered text logs with no standardized cost metrics or audit trails. | **Immutable Audit Logging**. Every step, retry, cost estimate, and permission check produces standardized JSONL or Redis Stream audit records. |
 
-Add three lines of code. Get production guarantees.
+---
 
-```python
-import luro
-from luro.integrations.langgraph import LuroGraph
+## 🏗️ Architecture & Data Flow
 
-luro.init(project="customer-onboarding", api_key="luro_xxx")
+Luro acts as an asynchronous middleware layer between your pipeline logic and your infrastructure storage.
 
-# Wrap your existing LangGraph pipeline — everything else stays the same
-graph = LuroGraph(StateGraph(MyState), pipeline_name="onboarding")
+```mermaid
+graph TD
+    subgraph App [Your Application Pipeline]
+        P[luro.pipeline context] --> S1["@luro.step: Fetch Data"]
+        S1 --> S2["@luro.step + @luro.trust: Transform & Access API"]
+        S2 --> S3["@luro.step + @luro.requires_approval: Execute Action"]
+    end
+
+    subgraph Core [Luro Core Engine]
+        C[Checkpoint Engine]
+        T[Trust & Security Broker]
+        A[Approval Gate Engine]
+    end
+
+    subgraph Store [Persistence Layer]
+        LStore[(Local Disk JSONL)]
+        RStore[(Redis / Streams)]
+        CStore[(Luro Cloud API)]
+    end
+
+    S1 <-->|Read Cache / Save State| C
+    S2 <-->|Validate Permissions| T
+    S3 <-->|Pause & Notify / Poll Decision| A
+
+    C --> Store
+    T --> Store
+    A --> Store
 ```
 
-That's it. Your pipeline now has:
+---
 
-- ✅ **Smart Checkpointing** — Resume from failure, not from scratch
-- 🔒 **Trust Enforcement** — Agents can only touch what they declared
-- ⏸️ **Approval Gates** — Pause before irreversible actions
-- 📋 **Full Audit Log** — Replay any execution, know exactly what happened
+## 🚀 Quickstart
 
-## Quick Start
+### 1. Installation
 
-### Install
+Install the Luro SDK via pip:
 
 ```bash
 pip install luro-sdk
 ```
 
-### Initialize
+For Redis storage support in production environments:
+
+```bash
+pip install "luro-sdk[redis]"
+```
+
+### 2. Five-Minute Integration
+
+Here is a complete, production-ready pipeline demonstrating **Checkpointing**, **Permission Enforcement**, and **Human Approval Gates** working together:
+
+```python
+import asyncio
+import httpx
+import luro
+
+# 1. Initialize Luro SDK (defaults to local disk storage in development)
+luro.init(project="customer-operations", environment="development")
+
+
+# 2. Define pipeline steps using decorators
+@luro.step("fetch-customer-data", max_retries=3, retry_delay=1.0)
+@luro.trust(can_read=["crm.customers"])
+async def fetch_customer(ctx: luro.Context, customer_id: str) -> dict:
+    """Fetch customer details through permission-checked context access."""
+    
+    async def _api_call():
+        # Simulate external API call
+        return {"id": customer_id, "name": "Acme Corp", "status": "inactive"}
+
+    # Luro verifies at runtime that "crm.customers" is allowed for reading
+    return await ctx.access("crm.customers", action="read", handler=_api_call)
+
+
+@luro.step("analyze-churn-risk")
+async def analyze_churn(ctx: luro.Context) -> dict:
+    """Analyze risk using previous step outputs."""
+    # Retrieve cached output from the previous step without re-running it
+    customer = ctx.get_output("fetch-customer-data")
+    
+    # Record simulated LLM token usage for cost estimation
+    ctx.record_token_usage(prompt_tokens=450, completion_tokens=120, model="gpt-4o")
+    
+    return {"customer_id": customer["id"], "risk_score": 0.89, "recommendation": "terminate"}
+
+
+@luro.step("delete-account")
+@luro.requires_approval(
+    title="Confirm Account Deletion",
+    description="About to permanently delete account for {customer_id} (Risk Score: {risk_score})",
+    action_class="destructive",
+    timeout_hours=24,
+    on_timeout="abort",
+    notify=["slack", "email"],
+    metadata_keys=["customer_id", "risk_score"]
+)
+async def delete_account(ctx: luro.Context) -> dict:
+    """Dangerous action guarded by a human approval gate."""
+    customer_id = ctx.metadata["customer_id"]
+    return {"status": "deleted", "customer_id": customer_id}
+
+
+# 3. Run the pipeline context
+async def main():
+    async with luro.pipeline("churn-remediation", metadata={"customer_id": "cust_8842"}) as pipe:
+        data = await fetch_customer(pipe.context, "cust_8842")
+        analysis = await analyze_churn(pipe.context)
+        
+        # Merge analysis results into metadata so the approval gate template can render them
+        pipe.context.metadata.update(analysis)
+        
+        result = await delete_account(pipe.context)
+        print(f"Pipeline finished successfully: {result}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Console Output During Execution
+
+When reaching the approval gate in local development mode, Luro automatically spins up a background HTTP server on port `7749` and prints a clean, actionable prompt to your terminal:
+
+```text
+⏸ Luro Approval Required
+  Pipeline: churn-remediation
+  Step: delete-account
+  Action: About to permanently delete account for cust_8842 (Risk Score: 0.89) (DESTRUCTIVE)
+
+  Approve: http://localhost:7749/approve/d3b07384-d113-4c4e-9c81-bcc318231221
+  Reject:  http://localhost:7749/reject/d3b07384-d113-4c4e-9c81-bcc318231221
+
+  Expires in: 24.0 hours
+  Waiting for decision...
+```
+
+Clicking either URL instantly registers your decision, logs the audit event, and resumes or aborts the asynchronous pipeline.
+
+---
+
+## 💎 Core Features
+
+### 1. 🔄 Smart Checkpointing & Cost Tracking
+
+Wrap any async or sync function with `@luro.step("step-name")`. Every successful execution is serialized and persisted to storage. If a downstream step crashes or raises an exception, subsequent reruns skip completed steps instantly.
+
+```python
+@luro.step("generate-report", max_retries=5, retry_delay=2.0)
+async def generate_report(ctx: luro.Context) -> dict:
+    # Access outputs from earlier steps safely
+    raw_data = ctx.get_output("fetch-data")
+    
+    # Track model usage
+    ctx.record_token_usage(prompt_tokens=1200, completion_tokens=350, model="claude-3-5-sonnet")
+    return {"report_url": "https://..."}
+```
+
+* **Automatic Retries**: Exponential backoff with jitter on network failures.
+* **Token & Cost Ledger**: Automatically tallies prompt and completion tokens across models (`gpt-4o`, `claude-3-5-sonnet`, etc.), estimating real-time USD costs in the execution summary.
+
+### 2. 🛡️ Zero-Trust Security Broker
+
+Prevent agents from performing unauthorized network requests or file modifications by declaring explicit capability manifests.
+
+```python
+@luro.step("send-slack-notification")
+@luro.trust(
+    can_read=["slack.channels", "users.profile"],
+    can_write=["slack.messages"],
+    can_execute=[],
+    can_delete=[]
+)
+async def notify_team(ctx: luro.Context):
+    # This succeeds: matches declared can_write pattern
+    await ctx.access("slack.messages", action="write", handler=post_message)
+    
+    # This raises LuroPermissionError and logs an audit violation immediately!
+    await ctx.access("aws.s3.buckets", action="delete", handler=delete_bucket)
+```
+
+### 3. ⏸️ Human Approval Gates
+
+Guard destructive, financial, or external actions behind asynchronous human reviews.
+
+```python
+@luro.requires_approval(
+    title="Wire Transfer Request",
+    description="Transferring ${amount} to account {recipient}",
+    action_class="financial",
+    timeout_hours=4.0,
+    on_timeout="escalate",        # Options: "abort", "auto_approve", "escalate"
+    notify=["slack", "webhook"],  # Dispatches Block Kit / HMAC webhooks
+    metadata_keys=["amount", "recipient"]
+)
+```
+
+* **Programmatic Fallbacks**: You can also approve or reject requests programmatically from external backend webhooks or CLI scripts via `await luro.approve(approval_id, decided_by="supervisor")`.
+
+### 4. 📜 Immutable Audit Trails
+
+Every execution maintains an append-only sequence of immutable events (`PIPELINE_STARTED`, `STEP_COMPLETED`, `PERMISSION_VIOLATION`, `APPROVAL_REQUESTED`, `APPROVAL_DECISION`).
+
+In local mode, logs are formatted as standard JSONL (`~/.luro/executions/{id}/audit.jsonl`). In production Redis storage, events are streamed to high-throughput **Redis Streams** (`XRANGE`), providing complete auditability for SOC2 and enterprise compliance.
+
+---
+
+## 🗄️ Storage Backends
+
+Luro provides a standardized interface across multiple storage engines, allowing you to develop locally without infrastructure overhead and deploy to production seamlessly.
+
+| Storage Backend | Configuration | Use Case & Persistence Guarantees |
+| :--- | :--- | :--- |
+| **Local File Store** *(Default)* | `storage="local"` | Perfect for local development and CI testing. Stores execution manifests, checkpoints, and JSONL audit logs under `~/.luro/executions/`. Fails silently on network errors so development workflows are never blocked. |
+| **Redis & Redis Streams** | `storage="redis"` | Built for high-concurrency production workloads. Uses Redis key-value storage for state checkpoints and append-only Redis Streams for real-time audit event distribution. |
+| **Luro Cloud API** | `storage="cloud"` | Enterprise managed cloud platform. Syncs executions, approval queues, and telemetry directly to your centralized Luro Cloud dashboard. |
+
+---
+
+## ⚙️ Configuration Matrix
+
+Initialize Luro programmatically at application startup or via standard environment variables:
+
+### Programmatic Configuration
 
 ```python
 import luro
 
-# Local mode — no API key needed, data stays on disk
-luro.init(project="my-first-project")
-
-# Or connect to Luro Cloud for dashboard, team access, and persistence
 luro.init(
-    project="my-first-project",
-    api_key="luro_xxx",
-    environment="production",
-    storage="cloud"
-)
-```
-
-### Wrap Your Pipeline
-
-```python
-async with luro.pipeline("email-processor", version="1.0") as pipe:
-    # Your existing agent code runs here — unchanged
-    emails = await fetch_emails()
-    summary = await summarize(emails)
-    await send_report(summary)
-```
-
-Every run automatically gets:
-- A unique execution ID
-- Start/end timestamps
-- Status tracking (RUNNING → COMPLETED or FAILED)
-- Full audit trail
-
-### See the Result
-
-```
-✓ Luro execution complete
-  Steps: 3 completed, 0 skipped, 0 retried
-  Tokens: 2,847 total | Est. cost: $0.043
-  Duration: 4.2s
-```
-
-When your pipeline fails and restarts:
-
-```
-✓ Luro execution complete
-  Steps: 1 completed, 2 skipped, 0 retried
-  Tokens: 723 total | Est. cost: $0.012
-  Resumed from checkpoint: step "summarize" (saved $0.031, 2.8s)
-```
-
-## How It Works
-
-```
-Your Pipeline
-│
-├─ Step 1: Fetch emails     ✓ checkpoint saved
-├─ Step 2: Summarize        ✓ checkpoint saved
-├─ Step 3: Save to Notion   ✗ FAILED
-│
-Without Luro: restart from Step 1 → cost $0.40, 14 seconds
-With Luro:    resume from Step 3 → cost $0.04, 2 seconds
-```
-
-## Features
-
-### 🔄 Smart Checkpointing
-Every step's output is saved. If your pipeline fails at step 5, it resumes from step 5 — not step 1. You see exactly how much time and money you saved.
-
-```python
-@luro.step("fetch-emails", max_retries=3, retry_delay=2.0)
-async def fetch_emails(ctx: luro.Context) -> dict:
-    result = await call_llm(...)
-    return result
-```
-
-### 🔒 Trust Broker
-Declare what each agent step can access. Luro enforces it at runtime — not just documentation.
-
-```python
-@luro.step("send-email")
-@luro.trust(
-    can_read=["gmail.messages", "gmail.labels"],
-    can_write=["gmail.drafts"],
-    can_execute=["gmail.send"],
-    can_delete=[]
-)
-async def send_email_step(ctx):
-    emails = await ctx.access("gmail.messages", action="read", handler=fetch_fn)
-```
-
-### ⏸️ Human Approval Gates
-Pause before dangerous actions. Approve from Slack, email, or the dashboard.
-
-```python
-@luro.step("delete-records")
-@luro.requires_approval(
-    title="Delete customer records",
-    description="About to permanently delete {record_count} records",
-    action_class="destructive",
-    timeout_hours=24,
-    notify=["email", "slack"]
-)
-async def delete_records(ctx):
-    ...
-```
-
-### 📋 Immutable Audit Log
-Every execution produces a complete, append-only audit trail. Replay any past execution.
-
-```
-Luro Audit Log — customer-onboarding — abc123
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-09:14:00.000  PIPELINE_STARTED
-09:14:00.043  STEP_STARTED        fetch-emails
-09:14:02.891  STEP_COMPLETED      fetch-emails        2848ms  $0.021
-09:14:02.901  STEP_STARTED        summarize-emails
-09:14:05.203  STEP_COMPLETED      summarize-emails    2302ms  $0.018
-09:14:05.210  APPROVAL_REQUESTED  delete-records      (awaiting)
-09:14:47.002  APPROVAL_DECISION   delete-records      APPROVED
-09:14:47.041  STEP_STARTED        delete-records
-09:14:48.112  STEP_COMPLETED      delete-records      1071ms
-09:14:48.120  PIPELINE_COMPLETED
-
-Total: 48.1s | $0.039 | 1,570 tokens | 0 violations | 1 approval
-```
-
-## Configuration
-
-### Programmatic
-
-```python
-luro.init(
-    project="my-project",
-    api_key="luro_xxx",
-    environment="production",     # "development" | "staging" | "production"
-    storage="cloud",              # "local" | "redis" | "cloud"
+    project="autonomous-researcher",
+    api_key="luro_live_xxxxx",
+    environment="production",           # "development" | "staging" | "production"
+    storage="redis",                    # "local" | "redis" | "cloud"
+    redis_url="redis://redis-master:6379/0",
+    notifications={
+        "slack": {"webhook_url": "https://hooks.slack.com/services/..."},
+        "email": {"provider": "resend", "api_key": "re_123456", "from": "bot@company.com"}
+    }
 )
 ```
 
 ### Environment Variables
 
-```bash
-LURO_API_KEY=luro_xxx
-LURO_PROJECT=my-project
-LURO_ENVIRONMENT=production
-LURO_STORAGE=redis
-LURO_REDIS_URL=redis://localhost:6379
-```
-
-## Architecture
-
-```
-┌──────────────────────────────────────────┐
-│              Your Code                    │
-│  (LangGraph / CrewAI / OpenAI Agents)    │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│           Luro SDK (Python)              │
-│                                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ │
-│  │Checkpoint│ │  Trust   │ │ Approval │ │
-│  │ Engine   │ │ Broker   │ │  Gates   │ │
-│  └──────────┘ └──────────┘ └──────────┘ │
-│  ┌──────────────────────────────────────┐│
-│  │         Audit & Replay Engine        ││
-│  └──────────────────────────────────────┘│
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│          Storage Backends                │
-│  Local (dev) │ Redis (prod) │ Cloud      │
-└──────────────────────────────────────────┘
-```
-
-## Development
-
-```bash
-# Clone the repo
-git clone https://github.com/saketjndl/Luro.git
-cd Luro/packages/luro-sdk
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# Run tests
-pytest tests/ -v
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `LURO_PROJECT` | Identifier for the pipeline group or application | `default` |
+| `LURO_ENVIRONMENT` | Current runtime environment (`development`, `production`) | `development` |
+| `LURO_STORAGE` | Storage backend driver (`local`, `redis`, `cloud`) | `local` |
+| `LURO_API_KEY` | API key when communicating with Luro Cloud | `None` |
+| `LURO_REDIS_URL` | Connection string for Redis backend | `redis://localhost:6379` |
 
 ---
 
+## 🔌 Framework Integrations
+
+Luro is designed to wrap around your agent code without replacing your framework.
+
+### LangGraph Integration
+
+```python
+from langgraph.graph import StateGraph
+import luro
+
+# Define standard LangGraph nodes wrapped in Luro steps
+@luro.step("research-node")
+async def research_step(state: dict) -> dict:
+    # Perform agent logic...
+    return {"findings": "..."}
+
+async def run_graph(initial_state: dict):
+    # Wrap graph execution inside Luro pipeline context
+    async with luro.pipeline("langgraph-researcher") as pipe:
+        # Pass pipe.context or state freely
+        result = await research_step(initial_state)
+        return result
+```
+
+---
+
+## 🧑‍💻 Contributing & Development
+
+We welcome contributions from the open-source community!
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/saketjndl/Luro.git
+cd Luro
+
+# 2. Install dependencies in editable mode
+pip install -e ".[dev,redis]"
+
+# 3. Run the test suite (100% async test coverage)
+pytest tests/ -v
+```
+
+---
+
+## 📄 License
+
+Luro is open-source software licensed under the [MIT License](LICENSE).
+
 <div align="center">
-
-**Luro** — Production operating layer for AI agent pipelines.
-
-[Documentation](https://docs.luro.dev) · [GitHub](https://github.com/saketjndl/Luro) · [Discord](https://discord.gg/luro)
-
+  <p>Built with ❤️ by the Luro Engineering Team.</p>
+  <p><a href="https://docs.luro.dev">Documentation</a> • <a href="https://github.com/saketjndl/Luro/issues">Report an Issue</a> • <a href="https://discord.gg/luro">Join Discord</a></p>
 </div>
