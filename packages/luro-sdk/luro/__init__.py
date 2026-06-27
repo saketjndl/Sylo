@@ -26,6 +26,8 @@ import logging
 from typing import Any
 
 from luro.config import LuroConfig, reset_config, set_config
+from luro.core.checkpoint import step
+from luro.core.context import Context
 from luro.core.pipeline import Pipeline
 from luro.exceptions import (
     LuroApprovalRejectedError,
@@ -43,6 +45,9 @@ __all__ = [
     # Initialization
     "init",
     "pipeline",
+    # Checkpoint engine (Brief 02)
+    "step",
+    "Context",
     # Models
     "ExecutionRecord",
     "Checkpoint",
