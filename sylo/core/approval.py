@@ -358,7 +358,7 @@ async def _send_notifications(req: ApprovalRequest) -> None:
                             "https://api.resend.com/emails",
                             headers={"Authorization": f"Bearer {email_cfg['api_key']}"},
                             json={
-                                "from": email_cfg.get("from", "sylo@sylo.dev"),
+                                "from": email_cfg.get("from", "saketjndl2005@gmail.com"),
                                 "to": email_cfg.get("to", []),
                                 "subject": f"[Sylo Approval Required] {req.title}",
                                 "html": f"<p>{req.description}</p><p>Approve ID: {req.approval_id}</p>",

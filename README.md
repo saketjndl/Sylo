@@ -21,7 +21,7 @@ Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop ap
 
 ---
 
-## ⚡ Why Sylo?
+## Why Sylo?
 
 When autonomous AI agents move from local prototypes to production environments, unexpected edge cases inevitably arise: API rate limits trigger crashes, hallucinations lead to unauthorized resource access, or destructive actions fire without oversight.
 
@@ -36,7 +36,7 @@ When autonomous AI agents move from local prototypes to production environments,
 
 ---
 
-## 🏗️ Architecture & Data Flow
+## Architecture & Data Flow
 
 Sylo acts as an asynchronous middleware layer between your pipeline logic and your infrastructure storage.
 
@@ -71,7 +71,7 @@ graph TD
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### 1. Installation
 
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 When reaching the approval gate in local development mode, Sylo automatically spins up a background HTTP server on port `7749` and prints a clean, actionable prompt to your terminal:
 
 ```text
-⏸ Sylo Approval Required
+[APPROVAL REQUIRED] Sylo Approval Required
   Pipeline: churn-remediation
   Step: delete-account
   Action: About to permanently delete account for cust_8842 (Risk Score: 0.89) (DESTRUCTIVE)
@@ -179,9 +179,9 @@ Clicking either URL instantly registers your decision, logs the audit event, and
 
 ---
 
-## 💎 Core Features
+## Core Features
 
-### 1. 🔄 Smart Checkpointing & Cost Tracking
+### 1. Smart Checkpointing & Cost Tracking
 
 Wrap any async or sync function with `@sylo.step("step-name")`. Every successful execution is serialized and persisted to storage. If a downstream step crashes or raises an exception, subsequent reruns skip completed steps instantly.
 
@@ -203,7 +203,7 @@ async def generate_report(ctx: sylo.Context) -> dict:
 > **Transparent Cost Modeling (No API Keys Needed)**  
 > How does Sylo calculate token savings and USD cost during local development? Sylo includes a built-in pricing table (`MODEL_PRICES`) for major LLMs ($2.50/$10 per 1M tokens for `gpt-4o`, etc.). In your step functions, you can either report token counts manually via `ctx.record_token_usage(prompt_tokens=..., completion_tokens=..., model="...")` or let Sylo extract them from framework response headers. When a pipeline crashes and resumes, Sylo loads cached checkpoints from disk and credits the exact token counts and estimated USD cost saved—allowing developers to benchmark and audit financial savings in local CI/CD pipelines before spending real money on production API calls.
 
-### 2. 🛡️ Zero-Trust Security Broker
+### 2. Zero-Trust Security Broker
 
 Prevent agents from performing unauthorized network requests or file modifications by declaring explicit capability manifests.
 
@@ -223,7 +223,7 @@ async def notify_team(ctx: sylo.Context):
     await ctx.access("aws.s3.buckets", action="delete", handler=delete_bucket)
 ```
 
-### 3. ⏸️ Human Approval Gates
+### 3. Human Approval Gates
 
 Guard destructive, financial, or external actions behind asynchronous human reviews.
 
@@ -241,7 +241,7 @@ Guard destructive, financial, or external actions behind asynchronous human revi
 
 * **Programmatic Fallbacks**: You can also approve or reject requests programmatically from external backend webhooks or CLI scripts via `await sylo.approve(approval_id, decided_by="supervisor")`.
 
-### 4. 📜 Immutable Audit Trails
+### 4. Immutable Audit Trails
 
 Every execution maintains an append-only sequence of immutable events (`PIPELINE_STARTED`, `STEP_COMPLETED`, `PERMISSION_VIOLATION`, `APPROVAL_REQUESTED`, `APPROVAL_DECISION`).
 
@@ -249,7 +249,7 @@ In local mode, logs are formatted as standard JSONL (`~/.sylo/executions/{id}/au
 
 ---
 
-## 🗄️ Storage Backends
+## Storage Backends
 
 Sylo provides a standardized interface across multiple storage engines, allowing you to develop locally without infrastructure overhead and deploy to production seamlessly.
 
@@ -261,7 +261,7 @@ Sylo provides a standardized interface across multiple storage engines, allowing
 
 ---
 
-## ⚙️ Configuration Matrix
+## Configuration Matrix
 
 Initialize Sylo programmatically at application startup or via standard environment variables:
 
@@ -278,7 +278,7 @@ sylo.init(
     redis_url="redis://redis-master:6379/0",
     notifications={
         "slack": {"webhook_url": "https://hooks.slack.com/services/..."},
-        "email": {"provider": "resend", "api_key": "re_123456", "from": "bot@company.com"}
+        "email": {"provider": "resend", "api_key": "re_123456", "from": "saketjndl2005@gmail.com"}
     }
 )
 ```
@@ -295,7 +295,7 @@ sylo.init(
 
 ---
 
-## 🔌 Framework Integrations
+## Framework Integrations
 
 Sylo is designed to wrap around your agent code without replacing your framework.
 
@@ -321,7 +321,7 @@ async def run_graph(initial_state: dict):
 
 ---
 
-## 🧑‍💻 Contributing & Development
+## Contributing & Development
 
 We welcome contributions from the open-source community!
 
@@ -339,11 +339,11 @@ pytest tests/ -v
 
 ---
 
-## 📄 License
+## License
 
 Sylo is open-source software licensed under the [MIT License](LICENSE).
 
 <div align="center">
-  <p>Built with ❤️ by the Sylo Engineering Team.</p>
+  <p>Built with dedication by Saket (<a href="mailto:saketjndl2005@gmail.com">saketjndl2005@gmail.com</a>).</p>
   <p><a href="https://sylo-website-brown.vercel.app/">Website</a> • <a href="https://sylo-website-brown.vercel.app/docs">Documentation</a> • <a href="https://github.com/saketjndl/Sylo/issues">Report an Issue</a> • <a href="https://discord.gg/hxr84ZwSyZ">Join Discord</a></p>
 </div>
