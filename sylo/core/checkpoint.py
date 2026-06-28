@@ -118,6 +118,16 @@ def step(
                 existing_checkpoint = await pipeline._safe_storage_op(
                     storage.get_checkpoint, pipeline.execution_id, name
                 )
+                if existing_checkpoint is None and pipeline.resume_from is not None:
+                    existing_checkpoint = await pipeline._safe_storage_op(
+                        storage.get_checkpoint, pipeline.resume_from, name
+                    )
+                    if existing_checkpoint is not None:
+                        # Copy checkpoint to current execution so persistence is complete
+                        existing_checkpoint.execution_id = pipeline.execution_id
+                        await pipeline._safe_storage_op(
+                            storage.save_checkpoint, existing_checkpoint
+                        )
 
             if (
                 existing_checkpoint is not None

@@ -38,7 +38,11 @@ class LocalStorage(SyloStorage):
     """
 
     def __init__(self, root_dir: Path | str | None = None) -> None:
-        self._root = Path(root_dir) if root_dir else DEFAULT_ROOT
+        import os
+        if root_dir is None:
+            env_dir = os.environ.get("SYLO_STORAGE_DIR")
+            root_dir = Path(env_dir) if env_dir else DEFAULT_ROOT
+        self._root = Path(root_dir)
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _execution_dir(self, execution_id: str) -> Path:
