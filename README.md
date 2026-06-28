@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/saketjndl/Sylo-Website/main/assets/sylo.svg" alt="Sylo Logo" width="180"/>
+<img src="https://sylo-website-brown.vercel.app/assets/sylo.png" alt="Sylo Logo" width="180"/>
 
 # Sylo
 

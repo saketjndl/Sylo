@@ -1,2 +1,2 @@
-include assets/sylo.svg
+include assets/sylo.png assets/sylo.svg
 recursive-include assets *
