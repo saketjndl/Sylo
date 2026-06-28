@@ -21,6 +21,12 @@ Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop ap
 
 ---
 
+## Verified
+
+Tested against real LLM APIs (Groq / llama-3.1-8b-instant) with live inference, real token extraction, and checkpoint persistence verified on disk. See `examples/real_world_test.py`.
+
+---
+
 ## Why Sylo?
 
 When autonomous AI agents move from local prototypes to production environments, unexpected edge cases inevitably arise: API rate limits trigger crashes, hallucinations lead to unauthorized resource access, or destructive actions fire without oversight.
@@ -120,7 +126,8 @@ async def analyze_churn(ctx: sylo.Context) -> dict:
     # Retrieve cached output from the previous step without re-running it
     customer = ctx.get_output("fetch-customer-data")
     
-    # Record simulated LLM token usage for cost estimation
+    # In production, pass real token counts from your LLM provider's response object.
+    # See examples/real_world_test.py for a complete working example with Groq.
     ctx.record_token_usage(prompt_tokens=450, completion_tokens=120, model="gpt-4o")
     
     return {"customer_id": customer["id"], "risk_score": 0.89, "recommendation": "terminate"}
