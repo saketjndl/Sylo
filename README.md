@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/sylo.svg" alt="Sylo Logo" width="180"/>
+<img src="https://raw.githubusercontent.com/saketjndl/Sylo-Website/main/assets/sylo.svg" alt="Sylo Logo" width="180"/>
 
 # Sylo
 
@@ -15,7 +15,7 @@ Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop ap
 [![Type Checked](https://img.shields.io/badge/Type%20Checked-Pydantic%20v2-8A2BE2.svg?style=flat-square)](https://docs.pydantic.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-[Documentation](https://docs.sylo.dev) · [Quickstart](#quickstart) · [Core Features](#core-features) · [Storage Backends](#storage-backends) · [Discord](https://discord.gg/sylo)
+[Website](https://sylo-website-brown.vercel.app/) · [Documentation](https://sylo-website-brown.vercel.app/docs) · [Quickstart](#quickstart) · [Core Features](#core-features) · [Storage Backends](#storage-backends) · [Discord](https://discord.gg/hxr84ZwSyZ)
 
 </div>
 
@@ -345,5 +345,5 @@ Sylo is open-source software licensed under the [MIT License](LICENSE).
 
 <div align="center">
   <p>Built with ❤️ by the Sylo Engineering Team.</p>
-  <p><a href="https://docs.sylo.dev">Documentation</a> • <a href="https://github.com/saketjndl/Sylo/issues">Report an Issue</a> • <a href="https://discord.gg/sylo">Join Discord</a></p>
+  <p><a href="https://sylo-website-brown.vercel.app/">Website</a> • <a href="https://sylo-website-brown.vercel.app/docs">Documentation</a> • <a href="https://github.com/saketjndl/Sylo/issues">Report an Issue</a> • <a href="https://discord.gg/hxr84ZwSyZ">Join Discord</a></p>
 </div>

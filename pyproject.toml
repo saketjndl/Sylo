@@ -49,8 +49,8 @@ langgraph = [
 sylo = "sylo.cli:main"
 
 [project.urls]
-Homepage = "https://sylo.dev"
-Documentation = "https://docs.sylo.dev"
+Homepage = "https://sylo-website-brown.vercel.app/"
+Documentation = "https://sylo-website-brown.vercel.app/docs"
 Repository = "https://github.com/saketjndl/Sylo"
 
 [tool.hatch.build.targets.wheel]

@@ -23,6 +23,7 @@ def _clean_config():
         "SYLO_PROJECT",
         "SYLO_ENVIRONMENT",
         "SYLO_STORAGE",
+        "SYLO_STORAGE_DIR",
         "SYLO_REDIS_URL",
         "LURO_API_KEY",
         "LURO_PROJECT",
@@ -69,6 +70,7 @@ def init_sylo(tmp_storage_dir: Path):
             "storage": "local",
         }
         defaults.update(kwargs)
+        os.environ["SYLO_STORAGE_DIR"] = str(tmp_storage_dir)
         sylo.init(**defaults)
         # Override the storage root to use temp dir
         from sylo.config import get_config

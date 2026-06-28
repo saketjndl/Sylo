@@ -1,0 +1,2 @@
+include assets/sylo.svg
+recursive-include assets *
