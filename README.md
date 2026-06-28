@@ -9,7 +9,7 @@
 **Ship fault-tolerant, compliant, and controllable autonomous agent pipelines.**  
 Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop approval gates, and immutable audit logs to your existing Python agents in 3 lines of code.
 
-[![PyPI - Version](https://img.shields.io/badge/PyPI-v0.1.0-007ec6.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/sylo-sdk/)
+[![PyPI - Version](https://img.shields.io/badge/PyPI-v0.1.1-007ec6.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/sylo-sdk/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Tests](https://img.shields.io/badge/Tests-101%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
 [![Type Checked](https://img.shields.io/badge/Type%20Checked-Pydantic%20v2-8A2BE2.svg?style=flat-square)](https://docs.pydantic.dev/)

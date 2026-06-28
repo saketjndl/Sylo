@@ -55,7 +55,7 @@ class CloudStorage(SyloStorage):
                 headers={
                     "Authorization": f"Bearer {self._api_key}",
                     "Content-Type": "application/json",
-                    "User-Agent": "sylo-sdk/0.1.0",
+                    "User-Agent": "sylo-sdk/0.1.1",
                 },
                 timeout=30.0,
             )
