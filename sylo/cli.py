@@ -250,6 +250,12 @@ def audit_log(execution_id: str) -> None:
 
 def main() -> None:
     """Entry point for the sylo CLI."""
+    # Ensure UTF-8 output on Windows terminals (avoids cp1252 UnicodeEncodeError
+    # when printing Unicode box-drawing characters like ─, ━, ↻, ▶).
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     cli()
 
 
