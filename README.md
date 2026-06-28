@@ -199,6 +199,10 @@ async def generate_report(ctx: sylo.Context) -> dict:
 * **Automatic Retries**: Exponential backoff with jitter on network failures.
 * **Token & Cost Ledger**: Automatically tallies prompt and completion tokens across models (`gpt-4o`, `claude-3-5-sonnet`, etc.), estimating real-time USD costs in the execution summary.
 
+> [!NOTE]
+> **Transparent Cost Modeling (No API Keys Needed)**  
+> How does Sylo calculate token savings and USD cost during local development? Sylo includes a built-in pricing table (`MODEL_PRICES`) for major LLMs ($2.50/$10 per 1M tokens for `gpt-4o`, etc.). In your step functions, you can either report token counts manually via `ctx.record_token_usage(prompt_tokens=..., completion_tokens=..., model="...")` or let Sylo extract them from framework response headers. When a pipeline crashes and resumes, Sylo loads cached checkpoints from disk and credits the exact token counts and estimated USD cost saved—allowing developers to benchmark and audit financial savings in local CI/CD pipelines before spending real money on production API calls.
+
 ### 2. 🛡️ Zero-Trust Security Broker
 
 Prevent agents from performing unauthorized network requests or file modifications by declaring explicit capability manifests.
