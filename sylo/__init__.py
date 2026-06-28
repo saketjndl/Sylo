@@ -27,6 +27,7 @@ from typing import Any
 
 from sylo.config import SyloConfig, LuroConfig, reset_config, set_config
 from sylo.core.approval import approve, reject, requires_approval
+from sylo.core.audit import get_summary, replay
 from sylo.core.checkpoint import step
 from sylo.core.context import Context
 from sylo.core.pipeline import Pipeline
@@ -52,6 +53,8 @@ from sylo.models import (
     Checkpoint,
     ExecutionRecord,
     ExecutionStatus,
+    ExecutionSummary,
+    StepSummary,
 )
 
 __version__ = "0.1.0"
@@ -63,6 +66,9 @@ __all__ = [
     # Checkpoint engine (Brief 02)
     "step",
     "Context",
+    # Audit & Replay (Brief 05)
+    "get_summary",
+    "replay",
     # Trust broker (Brief 03)
     "trust",
     # Approval gates (Brief 04)
@@ -76,6 +82,8 @@ __all__ = [
     "ApprovalStatus",
     "AuditEvent",
     "ExecutionStatus",
+    "ExecutionSummary",
+    "StepSummary",
     # Exceptions (Sylo)
     "SyloError",
     "SyloConfigError",

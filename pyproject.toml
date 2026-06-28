@@ -30,6 +30,7 @@ dependencies = [
     "httpx>=0.25",
     "redis>=5.0",
     "python-dotenv>=1.0",
+    "click>=8.0",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,13 @@ dev = [
     "pytest-cov>=4.0",
     "fakeredis>=2.21",
 ]
+langgraph = [
+    "langgraph>=0.2",
+    "langchain-core>=0.2",
+]
+
+[project.scripts]
+sylo = "sylo.cli:main"
 
 [project.urls]
 Homepage = "https://sylo.dev"

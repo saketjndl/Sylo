@@ -10,7 +10,9 @@ import logging
 from typing import Any, Literal
 
 from sylo.exceptions import SyloPermissionError
+from sylo.core.costs import estimate_cost
 from sylo.core.trust import check_permission
+from sylo.models import TokenUsage
 
 logger = logging.getLogger("sylo")
 
@@ -52,6 +54,8 @@ class Context:
         self._permissions_used: set[tuple[str, str]] = set()  # set of (action, resource)
         # Internal: count of blocked permission attempts
         self._violations_attempted: int = 0
+        # Internal: manually recorded token usage from ctx.record_token_usage()
+        self._recorded_token_usage: TokenUsage | None = None
 
     def get_output(self, step_name: str) -> Any:
         """Get the output of a previously completed step.
@@ -163,3 +167,61 @@ class Context:
             return handler
 
         return None
+
+    def record_token_usage(
+        self,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        model: str | None = None,
+        total_tokens: int | None = None,
+    ) -> None:
+        """Record token usage for the current step.
+
+        Use this to manually track LLM token costs when the step's
+        return value doesn't include a ``usage`` dict.
+
+        Args:
+            prompt_tokens: Number of input/prompt tokens consumed.
+            completion_tokens: Number of output/completion tokens generated.
+            model: Model name for cost estimation (e.g., ``"gpt-4o"``).
+            total_tokens: Override total token count. If ``None``,
+                computed as ``prompt_tokens + completion_tokens``.
+
+        Example:
+            >>> @sylo.step("analyze")
+            ... async def analyze(ctx: sylo.Context) -> dict:
+            ...     ctx.record_token_usage(
+            ...         prompt_tokens=450,
+            ...         completion_tokens=120,
+            ...         model="gpt-4o",
+            ...     )
+            ...     return {"result": "..."}
+        """
+        from sylo.core.pipeline import _current_pipeline
+
+        computed_total = total_tokens if total_tokens is not None else (prompt_tokens + completion_tokens)
+
+        usage = TokenUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=computed_total,
+            model=model,
+        )
+        usage.estimated_cost_usd = estimate_cost(usage)
+
+        # Update pipeline-level token cost
+        pipeline = _current_pipeline.get(None)
+        if pipeline is not None and pipeline.record is not None:
+            pipeline.record.token_cost.total_tokens += computed_total
+            pipeline.record.token_cost.estimated_cost_usd += usage.estimated_cost_usd
+
+        # Store on context for the checkpoint engine to pick up
+        self._recorded_token_usage = usage
+
+        logger.debug(
+            "Recorded token usage for step '%s': %d tokens, $%.4f",
+            self._current_step_name,
+            computed_total,
+            usage.estimated_cost_usd,
+        )
+

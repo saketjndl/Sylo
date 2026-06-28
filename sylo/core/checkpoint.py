@@ -322,6 +322,14 @@ def step(
 
             # Step succeeded — extract token usage and save checkpoint
             token_usage = extract_token_usage(result) if isinstance(result, dict) else None
+            token_usage_from_manual = False
+
+            # Check for manually recorded token usage via ctx.record_token_usage()
+            if token_usage is None and hasattr(ctx, '_recorded_token_usage') and ctx._recorded_token_usage is not None:
+                token_usage = ctx._recorded_token_usage
+                token_usage_from_manual = True
+            # Clear for next step
+            ctx._recorded_token_usage = None
 
             completed_checkpoint = Checkpoint(
                 execution_id=pipeline.execution_id,
@@ -356,8 +364,8 @@ def step(
                     },
                 )
 
-                # Update pipeline-level token cost
-                if pipeline.record is not None:
+                # Update pipeline-level token cost (skip if already done via ctx.record_token_usage)
+                if pipeline.record is not None and not token_usage_from_manual:
                     pipeline.record.token_cost.total_tokens += token_usage.total_tokens
                     pipeline.record.token_cost.estimated_cost_usd += token_usage.estimated_cost_usd
 
