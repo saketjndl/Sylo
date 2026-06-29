@@ -25,6 +25,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from sylo.config import SyloConfig, LuroConfig, reset_config, set_config
 from sylo.core.approval import approve, reject, requires_approval
 from sylo.core.audit import get_summary, replay

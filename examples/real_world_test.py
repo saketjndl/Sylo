@@ -1,7 +1,7 @@
 # REQUIREMENTS:
 # pip install groq sylo-sdk
 #
-# Set environment variable before running:
+# Create a .env file with your API key:
 # GROQ_API_KEY=gsk_xxxxxxxxxxxx
 
 import asyncio

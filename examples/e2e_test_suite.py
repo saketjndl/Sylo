@@ -13,10 +13,10 @@
 #
 # REQUIREMENTS:
 #   pip install groq langchain-groq langgraph sylo-sdk
-#   Set GROQ_API_KEY environment variable before running.
+#   Create a .env file with GROQ_API_KEY=gsk_...
 #
 # USAGE:
-#   $env:GROQ_API_KEY="gsk_..."; python examples/e2e_test_suite.py
+#   python examples/e2e_test_suite.py
 # ══════════════════════════════════════════════════════════════
 
 import asyncio
