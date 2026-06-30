@@ -61,13 +61,14 @@ class Pipeline:
         name: str,
         version: str = "0.0.0",
         metadata: dict[str, Any] | None = None,
+        resume_from: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
         self.execution_id: str = ""
         self.record: ExecutionRecord | None = None
         self.context: Context | None = None
-        self.resume_from: str | None = None
+        self.resume_from: str | None = resume_from
         self.metadata: dict[str, Any] = metadata or {}
 
         self._storage: SyloStorage | None = None
@@ -193,7 +194,7 @@ class Pipeline:
             )
 
             logger.error(
-                "Sylo pipeline failed: %s (execution: %s) — %s",
+                "Sylo pipeline failed: %s (execution: %s) - %s",
                 self.name,
                 self.execution_id[:8],
                 exc_val,
@@ -256,7 +257,7 @@ class Pipeline:
 
         lines = [
             "",
-            "✓ Sylo execution complete",
+            "[SUCCESS] Sylo execution complete",
             f"  Steps: {steps_completed} completed, {steps_skipped} skipped, {steps_retried} retried",
             f"  Tokens: {total_tokens:,} total | Est. cost: ${total_cost:.3f}",
         ]

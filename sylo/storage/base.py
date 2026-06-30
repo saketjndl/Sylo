@@ -130,6 +130,10 @@ class SyloStorage(ABC):
         """
         ...
 
+    async def list_approval_requests(self) -> list[ApprovalRequest]:
+        """List all approval requests across executions."""
+        return []
+
 
 # Backwards compatibility alias
 LuroStorage = SyloStorage

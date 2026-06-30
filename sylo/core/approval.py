@@ -324,7 +324,7 @@ def _print_console_notice(req: ApprovalRequest) -> None:
     hours = round((req.expires_at - req.created_at).total_seconds() / 3600, 1)
     lines = [
         "",
-        "⏸ Sylo Approval Required",
+        "[APPROVAL REQUIRED] Sylo Approval Required",
         f"  Pipeline: {req.pipeline_name}",
         f"  Step: {req.step_name}",
         f"  Action: {req.description} ({req.action_class.upper()})",

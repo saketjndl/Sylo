@@ -44,6 +44,14 @@ langgraph = [
     "langgraph>=0.2",
     "langchain-core>=0.2",
 ]
+openai-agents = [
+    "openai-agents>=0.1",
+    "openai>=1.0",
+]
+crewai = [
+    "crewai>=0.80",
+    "litellm>=1.0",
+]
 
 [project.scripts]
 sylo = "sylo.cli:main"

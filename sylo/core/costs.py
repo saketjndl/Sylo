@@ -12,12 +12,17 @@ from sylo.models import TokenUsage
 COST_PER_1K_TOKENS: dict[str, dict[str, float]] = {
     "gpt-4o": {"input": 0.0025, "output": 0.01},
     "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+    "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
     "claude-sonnet-4-6": {"input": 0.003, "output": 0.015},
     "claude-haiku-4-5": {"input": 0.00025, "output": 0.00125},
 }
 
+# Alias matching README documentation
+MODEL_PRICES = COST_PER_1K_TOKENS
+
 # Fallback rate when model is unknown
 DEFAULT_COST_PER_1K: dict[str, float] = {"input": 0.002, "output": 0.008}
+
 
 
 def estimate_cost(usage: TokenUsage) -> float:

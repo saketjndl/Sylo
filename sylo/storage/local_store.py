@@ -259,3 +259,17 @@ class LocalStorage(SyloStorage):
             return ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8"))
 
         return await asyncio.to_thread(_read)
+
+    async def list_approval_requests(self) -> list[ApprovalRequest]:
+        """List all approval requests stored on disk."""
+        def _read() -> list[ApprovalRequest]:
+            results = []
+            for path in self._root.rglob("*.json"):
+                if path.parent.name == "approvals":
+                    try:
+                        results.append(ApprovalRequest.model_validate_json(path.read_text(encoding="utf-8")))
+                    except Exception:
+                        pass
+            return results
+
+        return await asyncio.to_thread(_read)

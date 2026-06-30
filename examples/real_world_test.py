@@ -30,7 +30,7 @@ async def summarize_text(ctx: sylo.Context) -> dict:
     print("  → Calling Groq API for summarization...")
     
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[
             {
                 "role": "user",
@@ -39,7 +39,7 @@ async def summarize_text(ctx: sylo.Context) -> dict:
 The transformer architecture, introduced in the paper 'Attention Is All You Need' in 2017, revolutionized natural language processing by replacing recurrent neural networks with self-attention mechanisms. This allowed for significantly more parallelization during training and enabled models to capture long-range dependencies in text more effectively. The architecture consists of an encoder and decoder, each made up of layers containing multi-head attention and feed-forward networks. Models like BERT, GPT, and T5 are all based on variations of this foundational architecture."""
             }
         ],
-        max_tokens=150
+        max_tokens=500
     )
     
     # Extract real token usage from API response
@@ -47,7 +47,7 @@ The transformer architecture, introduced in the paper 'Attention Is All You Need
     ctx.record_token_usage(
         prompt_tokens=usage.prompt_tokens,
         completion_tokens=usage.completion_tokens,
-        model="llama-3.1-8b-instant"
+        model="openai/gpt-oss-20b"
     )
     
     summary = response.choices[0].message.content
@@ -77,21 +77,21 @@ async def analyze_summary(ctx: sylo.Context) -> dict:
         print("  → Calling Groq API for analysis...")
         
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {
                     "role": "user", 
                     "content": f"What field of computer science does this relate to? One word answer only: {summary}"
                 }
             ],
-            max_tokens=10
+            max_tokens=500
         )
         
         usage = response.usage
         ctx.record_token_usage(
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
-            model="llama-3.1-8b-instant"
+            model="openai/gpt-oss-20b"
         )
         
         # Create crash flag then simulate crash
@@ -104,21 +104,21 @@ async def analyze_summary(ctx: sylo.Context) -> dict:
         os.remove(crash_flag_file)
         
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=[
                 {
                     "role": "user",
                     "content": f"What field of computer science does this relate to? One word answer only: {summary}"
                 }
             ],
-            max_tokens=10
+            max_tokens=500
         )
         
         usage = response.usage
         ctx.record_token_usage(
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
-            model="llama-3.1-8b-instant"
+            model="openai/gpt-oss-20b"
         )
         
         field = response.choices[0].message.content.strip()
@@ -138,21 +138,21 @@ async def generate_fact(ctx: sylo.Context) -> dict:
     print("  → Calling Groq API for fun fact...")
     
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-20b",
         messages=[
             {
                 "role": "user",
                 "content": f"Give me one surprising fun fact about {field} in exactly one sentence."
             }
         ],
-        max_tokens=100
+        max_tokens=500
     )
     
     usage = response.usage
     ctx.record_token_usage(
         prompt_tokens=usage.prompt_tokens,
         completion_tokens=usage.completion_tokens,
-        model="llama-3.1-8b-instant"
+        model="openai/gpt-oss-20b"
     )
     
     fact = response.choices[0].message.content.strip()

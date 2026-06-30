@@ -35,6 +35,7 @@ from sylo.config import SyloConfig, LuroConfig, reset_config, set_config
 from sylo.core.approval import approve, reject, requires_approval
 from sylo.core.audit import get_summary, replay
 from sylo.core.checkpoint import step
+from sylo.core.costs import MODEL_PRICES
 from sylo.core.context import Context
 from sylo.core.pipeline import Pipeline
 from sylo.core.trust import trust
@@ -72,6 +73,7 @@ __all__ = [
     # Checkpoint engine (Brief 02)
     "step",
     "Context",
+    "MODEL_PRICES",
     # Audit & Replay (Brief 05)
     "get_summary",
     "replay",
@@ -192,6 +194,7 @@ def pipeline(
     name: str,
     version: str = "0.0.0",
     metadata: dict[str, Any] | None = None,
+    resume_from: str | None = None,
 ) -> Pipeline:
     """Create a pipeline context manager.
 
@@ -203,6 +206,7 @@ def pipeline(
         name: Pipeline name (e.g., "email-processor", "customer-onboarding").
         version: Pipeline version string. Useful for tracking changes.
         metadata: Arbitrary key-value metadata attached to this execution.
+        resume_from: Optional execution ID to resume from.
 
     Returns:
         An async context manager that tracks the pipeline execution.
@@ -215,4 +219,4 @@ def pipeline(
     Raises:
         SyloConfigError: If sylo.init() has not been called.
     """
-    return Pipeline(name=name, version=version, metadata=metadata)
+    return Pipeline(name=name, version=version, metadata=metadata, resume_from=resume_from)
