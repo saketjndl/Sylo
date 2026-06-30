@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sylo-sdk"
-version = "0.1.1"
+version = "0.1.2"
 description = "Production operating layer for AI agent pipelines — checkpointing, permission enforcement, human approval gates, and audit logging."
 readme = "README.md"
 license = "MIT"
