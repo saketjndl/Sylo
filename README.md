@@ -9,7 +9,7 @@
 **Ship fault-tolerant, compliant, and controllable autonomous agent pipelines.**  
 Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop approval gates, and immutable audit logs to your existing Python agents in 3 lines of code.
 
-[![PyPI - Version](https://img.shields.io/badge/PyPI-v0.1.3-007ec6.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/sylo-sdk/)
+[![PyPI - Version](https://img.shields.io/badge/PyPI-v0.1.4-007ec6.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/sylo-sdk/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Tests](https://img.shields.io/badge/Tests-156%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
 [![E2E Verified](https://img.shields.io/badge/E2E-36%2F36%20Verified-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
@@ -271,6 +271,28 @@ Every execution maintains an append-only sequence of immutable events (`PIPELINE
 
 In local mode, logs are formatted as standard JSONL (`~/.sylo/executions/{id}/audit.jsonl`). In production Redis storage, events are streamed to high-throughput **Redis Streams** (`XRANGE`), providing complete auditability for SOC2 and enterprise compliance.
 
+### 5. Cross-Thread Context Propagation
+
+Some frameworks (e.g. LangChain, CrewAI) dispatch work to thread pools or new event loops. Python's `ContextVar` values are not automatically inherited by worker threads, which means `@sylo.step` would lose track of the active pipeline.
+
+Sylo detects this and raises a `SyloContextError` with actionable guidance instead of silently falling back to passthrough. To fix it, wrap the callable with `sylo.propagate_context()` **before** dispatching it:
+
+```python
+import asyncio
+import sylo
+
+@sylo.step("call-tool")
+async def call_tool(ctx: sylo.Context) -> dict:
+    # Wrap the sync function to carry the pipeline context into the thread
+    wrapped = sylo.propagate_context(my_sync_tool)
+
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, wrapped, arg1, arg2)
+    return {"result": result}
+```
+
+`propagate_context()` snapshots the current `ContextVar` state and replays it inside the worker thread, so `@sylo.step`, trust enforcement, and audit logging all work correctly across the boundary.
+
 ---
 
 ## Storage Backends
@@ -405,6 +427,7 @@ async def run():
 ```
 
 ### Known Limitations & Compatibility Notes
+- **Thread & Event-Loop Boundaries**: Frameworks that dispatch work to thread pools (e.g. `asyncio.to_thread`, `run_in_executor`) do not automatically carry Python `ContextVar` values into worker threads. If a `@sylo.step` is invoked from a worker thread without propagation, Sylo raises `SyloContextError` with guidance. Wrap the callable with `sylo.propagate_context()` before dispatching — see [Cross-Thread Context Propagation](#5-cross-thread-context-propagation) above.
 - **CrewAI & Groq / LiteLLM Compatibility**: When using third-party OpenAI-compatible endpoints like Groq with CrewAI, CrewAI injects prompt-caching markers (`cache_breakpoint`) into message dictionaries. Sylo automatically patches `crewai.llms.cache.mark_cache_breakpoint` and strips unsupported message flags during execution to prevent `400 Bad Request` API errors.
 - **OpenAI Agents SDK Tracing**: When pointing `OpenAIChatCompletionsModel` at non-OpenAI endpoints (such as Groq or local vLLM instances), make sure to call `agents.set_tracing_disabled(True)` to prevent the SDK from attempting to phone home trace telemetry to OpenAI servers.
 - **Async Execution**: Both OpenAI Agents SDK (`Runner.run()`) and CrewAI (`kickoff()`) run synchronously by default. Sylo wraps them seamlessly inside `asyncio.to_thread` executors so they integrate natively into non-blocking async Sylo pipelines.
