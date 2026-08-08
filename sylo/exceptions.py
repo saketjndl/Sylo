@@ -61,6 +61,20 @@ class SyloCheckpointExpiredError(SyloError):
     pass
 
 
+class SyloContextError(SyloError):
+    """Raised when a pipeline's ContextVar is lost across a boundary.
+
+    This happens when a @sylo.step is called with a pipeline-managed Context
+    but the pipeline's ContextVar was lost — typically due to a thread-pool
+    dispatch or nested asyncio.run() boundary.
+
+    Fix: wrap the callable with sylo.propagate_context() BEFORE dispatching
+    it to another thread. See sylo.propagate_context() for usage.
+    """
+
+    pass
+
+
 # Backwards compatibility aliases
 LuroError = SyloError
 LuroConfigError = SyloConfigError
@@ -68,3 +82,4 @@ LuroStorageError = SyloStorageError
 LuroPermissionError = SyloPermissionError
 LuroApprovalRejectedError = SyloApprovalRejectedError
 LuroCheckpointExpiredError = SyloCheckpointExpiredError
+LuroContextError = SyloContextError

@@ -56,6 +56,12 @@ class Context:
         self._violations_attempted: int = 0
         # Internal: manually recorded token usage from ctx.record_token_usage()
         self._recorded_token_usage: TokenUsage | None = None
+        # Internal: set to True by Pipeline.__aenter__ to indicate this Context
+        # was created by a pipeline. Used by @sylo.step to distinguish "no
+        # pipeline ever started" (passthrough) from "pipeline started but its
+        # ContextVar was lost" (SyloContextError). Not reset in __aexit__ —
+        # Context objects should not be reused across pipeline runs.
+        self._managed_by_pipeline: bool = False
 
     def get_output(self, step_name: str) -> Any:
         """Get the output of a previously completed step.

@@ -26,6 +26,11 @@ from typing import Any, Callable
 from sylo.config import get_config
 from sylo.core.context import Context
 from sylo.core.costs import estimate_cost, extract_token_usage
+from sylo.exceptions import (
+    SyloApprovalRejectedError,
+    SyloConfigError,
+    SyloPermissionError,
+)
 from sylo.models import (
     AuditEvent,
     Checkpoint,
@@ -102,7 +107,18 @@ def step(
 
             pipeline = _current_pipeline.get(None)
             if pipeline is None:
-                # Running outside a pipeline context — just call the function
+                if getattr(ctx, '_managed_by_pipeline', False):
+                    from sylo.exceptions import SyloContextError
+                    raise SyloContextError(
+                        "A Sylo pipeline created this Context but the pipeline's "
+                        "ContextVar was lost (likely due to a thread-pool dispatch "
+                        "or nested asyncio.run() boundary).\n"
+                        "Fix: wrap the callable with sylo.propagate_context() "
+                        "BEFORE dispatching it to another thread, e.g.:\n"
+                        "    wrapped = sylo.propagate_context(your_sync_function)\n"
+                        "    await loop.run_in_executor(None, wrapped, ...)"
+                    )
+                # No pipeline was ever started — passthrough for unit testing
                 return await func(ctx, *args, **kwargs)
 
             storage = pipeline._storage
@@ -216,6 +232,10 @@ def step(
                         result = await func(ctx, *args, **kwargs)
                         last_error = None
                         break  # Success
+                    except (SyloPermissionError, SyloApprovalRejectedError, SyloConfigError) as exc:
+                        last_error = exc
+                        retry_count = attempt  # Deterministic failures don't retry, so the count is just the current attempt index (0 for first run)
+                        break  # Deterministic failures — don't retry
                     except Exception as exc:
                         last_error = exc
                         retry_count = attempt + 1

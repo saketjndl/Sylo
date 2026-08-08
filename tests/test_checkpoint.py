@@ -448,3 +448,145 @@ class TestStepOutsidePipeline:
         ctx = Context(execution_id="test", pipeline_name="test")
         result = await standalone(ctx)
         assert result == {"result": "works"}
+
+
+class TestContextLossDetection:
+    """Tests for Fix #1: detecting ContextVar loss across boundaries."""
+
+    @pytest.mark.asyncio
+    async def test_managed_ctx_without_pipeline_raises_context_error(self):
+        """A pipeline-managed Context with no ContextVar should raise SyloContextError."""
+        from sylo.exceptions import SyloContextError
+
+        @sylo.step("managed-step")
+        async def managed_step(ctx: sylo.Context) -> dict:
+            return {"result": "should not reach"}
+
+        ctx = Context(execution_id="test", pipeline_name="test")
+        ctx._managed_by_pipeline = True  # Simulate pipeline-created context
+
+        with pytest.raises(SyloContextError, match="ContextVar was lost"):
+            await managed_step(ctx)
+
+    @pytest.mark.asyncio
+    async def test_unmanaged_ctx_without_pipeline_passes_through(self):
+        """A manually created Context (not pipeline-managed) should passthrough."""
+
+        @sylo.step("unmanaged-step")
+        async def unmanaged_step(ctx: sylo.Context) -> dict:
+            return {"result": "passthrough"}
+
+        ctx = Context(execution_id="test", pipeline_name="test")
+        assert ctx._managed_by_pipeline is False
+        result = await unmanaged_step(ctx)
+        assert result == {"result": "passthrough"}
+
+    @pytest.mark.asyncio
+    async def test_managed_ctx_with_pipeline_works_normally(self, setup_sylo):
+        """A pipeline-managed Context with active pipeline should work fine."""
+
+        @sylo.step("normal-step")
+        async def normal_step(ctx: sylo.Context) -> dict:
+            return {"result": "normal"}
+
+        async with sylo.pipeline("test-pipeline") as pipe:
+            assert pipe.context._managed_by_pipeline is True
+            result = await normal_step(pipe.context)
+
+        assert result == {"result": "normal"}
+
+    @pytest.mark.asyncio
+    async def test_context_error_message_is_actionable(self):
+        """The SyloContextError message should tell the user how to fix it."""
+        from sylo.exceptions import SyloContextError
+
+        @sylo.step("action-step")
+        async def action_step(ctx: sylo.Context) -> dict:
+            return {"result": "nope"}
+
+        ctx = Context(execution_id="test", pipeline_name="test")
+        ctx._managed_by_pipeline = True
+
+        with pytest.raises(SyloContextError, match="propagate_context"):
+            await action_step(ctx)
+
+
+class TestDeterministicErrorRetrySkip:
+    """Tests for Fix #2: deterministic errors should skip retry."""
+
+    @pytest.mark.asyncio
+    async def test_permission_error_skips_retry(self, setup_sylo):
+        """SyloPermissionError should raise immediately without retrying."""
+        from sylo.exceptions import SyloPermissionError
+
+        call_count = 0
+
+        @sylo.step("perm-step", max_retries=3, retry_delay=0.01)
+        async def perm_step(ctx: sylo.Context) -> dict:
+            nonlocal call_count
+            call_count += 1
+            raise SyloPermissionError("access denied")
+
+        with pytest.raises(SyloPermissionError, match="access denied"):
+            async with sylo.pipeline("test-pipeline") as pipe:
+                await perm_step(pipe.context)
+
+        assert call_count == 1  # No retries
+
+    @pytest.mark.asyncio
+    async def test_approval_rejected_skips_retry(self, setup_sylo):
+        """SyloApprovalRejectedError should raise immediately without retrying."""
+        from sylo.exceptions import SyloApprovalRejectedError
+
+        call_count = 0
+
+        @sylo.step("approval-step", max_retries=3, retry_delay=0.01)
+        async def approval_step(ctx: sylo.Context) -> dict:
+            nonlocal call_count
+            call_count += 1
+            raise SyloApprovalRejectedError("reviewer rejected")
+
+        with pytest.raises(SyloApprovalRejectedError, match="reviewer rejected"):
+            async with sylo.pipeline("test-pipeline") as pipe:
+                await approval_step(pipe.context)
+
+        assert call_count == 1  # No retries
+
+    @pytest.mark.asyncio
+    async def test_config_error_skips_retry(self, setup_sylo):
+        """SyloConfigError should raise immediately without retrying."""
+        from sylo.exceptions import SyloConfigError
+
+        call_count = 0
+
+        @sylo.step("config-step", max_retries=3, retry_delay=0.01)
+        async def config_step(ctx: sylo.Context) -> dict:
+            nonlocal call_count
+            call_count += 1
+            raise SyloConfigError("bad config")
+
+        with pytest.raises(SyloConfigError, match="bad config"):
+            async with sylo.pipeline("test-pipeline") as pipe:
+                await config_step(pipe.context)
+
+        assert call_count == 1  # No retries
+
+    @pytest.mark.asyncio
+    async def test_transient_errors_still_retry(self, setup_sylo):
+        """Non-deterministic errors should still be retried as before."""
+        call_count = 0
+
+        @sylo.step("transient-step", max_retries=2, retry_delay=0.01)
+        async def transient_step(ctx: sylo.Context) -> dict:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("transient failure")
+            return {"success": True}
+
+        async with sylo.pipeline("test-pipeline") as pipe:
+            result = await transient_step(pipe.context)
+
+        assert call_count == 3  # 1 initial + 2 retries
+        assert result == {"success": True}
+

@@ -109,6 +109,7 @@ class Pipeline:
             run_number=run_number,
             metadata=self.metadata,
         )
+        self.context._managed_by_pipeline = True
 
         # Auto-detect resumption: find last FAILED/RUNNING execution
         if self.resume_from is None:
@@ -255,9 +256,19 @@ class Pipeline:
         cost_saved = sum(r.cost_saved_usd for r in results if r.was_cached)
         time_saved_ms = sum(r.time_saved_ms for r in results if r.was_cached)
 
+        from sylo.models import ExecutionStatus
+        if self.record.status == ExecutionStatus.COMPLETED:
+            status_msg = "[SUCCESS] Sylo execution complete"
+        elif self.record.status == ExecutionStatus.FAILED:
+            status_msg = f"[FAILED] Sylo execution failed: {self.record.error}"
+        elif self.record.status == ExecutionStatus.AWAITING_APPROVAL:
+            status_msg = "[PENDING] Sylo execution awaiting approval"
+        else:
+            status_msg = f"[{self.record.status.value}] Sylo execution ended"
+        
         lines = [
             "",
-            "[SUCCESS] Sylo execution complete",
+            status_msg,
             f"  Steps: {steps_completed} completed, {steps_skipped} skipped, {steps_retried} retried",
             f"  Tokens: {total_tokens:,} total | Est. cost: ${total_cost:.3f}",
         ]

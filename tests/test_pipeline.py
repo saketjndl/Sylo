@@ -157,3 +157,59 @@ class TestPipelineStorage:
         event_types = [e.event_type for e in events]
         assert "PIPELINE_STARTED" in event_types
         assert "PIPELINE_FAILED" in event_types
+
+
+class TestCostReportLabels:
+    """Tests for Fix #3: status-based console labeling."""
+
+    @pytest.mark.asyncio
+    async def test_cost_report_shows_success_label(
+        self, setup_sylo: Path, capsys
+    ):
+        """Successful pipeline should print [SUCCESS] label."""
+
+        @sylo.step("ok-step")
+        async def ok_step(ctx: sylo.Context) -> dict:
+            return {"data": "hello"}
+
+        async with sylo.pipeline("test-pipeline") as pipe:
+            await ok_step(pipe.context)
+
+        captured = capsys.readouterr()
+        assert "[SUCCESS] Sylo execution complete" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_cost_report_shows_failed_label_with_error(
+        self, setup_sylo: Path, capsys
+    ):
+        """Failed pipeline should print [FAILED] label with the error message."""
+
+        @sylo.step("fail-step")
+        async def fail_step(ctx: sylo.Context) -> dict:
+            return {"data": "hello"}
+
+        with pytest.raises(ValueError):
+            async with sylo.pipeline("test-pipeline") as pipe:
+                await fail_step(pipe.context)
+                raise ValueError("something broke")
+
+        captured = capsys.readouterr()
+        assert "[FAILED] Sylo execution failed:" in captured.out
+        assert "something broke" in captured.out
+
+
+class TestManagedByPipelineFlag:
+    """Tests for the _managed_by_pipeline flag on Context."""
+
+    @pytest.mark.asyncio
+    async def test_flag_set_by_pipeline(self, setup_sylo: Path):
+        """Pipeline.__aenter__ should set _managed_by_pipeline to True."""
+        async with sylo.pipeline("test-pipeline") as pipe:
+            assert pipe.context._managed_by_pipeline is True
+
+    @pytest.mark.asyncio
+    async def test_flag_not_set_on_manual_context(self):
+        """Manually created Context should have _managed_by_pipeline = False."""
+        from sylo.core.context import Context
+        ctx = Context(execution_id="test", pipeline_name="test")
+        assert ctx._managed_by_pipeline is False

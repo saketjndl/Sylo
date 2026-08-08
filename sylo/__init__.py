@@ -22,6 +22,8 @@ Environment variables:
 
 from __future__ import annotations
 
+import contextvars
+import functools
 import logging
 from typing import Any
 
@@ -43,12 +45,14 @@ from sylo.exceptions import (
     SyloApprovalRejectedError,
     SyloCheckpointExpiredError,
     SyloConfigError,
+    SyloContextError,
     SyloError,
     SyloPermissionError,
     SyloStorageError,
     LuroApprovalRejectedError,
     LuroCheckpointExpiredError,
     LuroConfigError,
+    LuroContextError,
     LuroError,
     LuroPermissionError,
     LuroStorageError,
@@ -64,7 +68,7 @@ from sylo.models import (
     StepSummary,
 )
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = [
     # Initialization
@@ -99,6 +103,7 @@ __all__ = [
     "SyloPermissionError",
     "SyloApprovalRejectedError",
     "SyloCheckpointExpiredError",
+    "SyloContextError",
     # Exceptions (Luro Backwards Compat)
     "LuroError",
     "LuroConfigError",
@@ -106,6 +111,9 @@ __all__ = [
     "LuroPermissionError",
     "LuroApprovalRejectedError",
     "LuroCheckpointExpiredError",
+    "LuroContextError",
+    # Utilities
+    "propagate_context",
 ]
 
 # Configure logging with a NullHandler so library users control output
@@ -220,3 +228,41 @@ def pipeline(
         SyloConfigError: If sylo.init() has not been called.
     """
     return Pipeline(name=name, version=version, metadata=metadata, resume_from=resume_from)
+
+
+def propagate_context(func: Any) -> Any:
+    """Capture the current Sylo pipeline context and bind it to a callable.
+
+    Call this **from inside an active pipeline context** (e.g. within a
+    ``@sylo.step`` function) to snapshot the current ContextVars. The
+    returned wrapper replays that captured context wherever it is called,
+    including worker threads and new event loops.
+
+    .. warning::
+
+        Must be called from inside an active ``sylo.pipeline()`` context.
+        Calling it before the pipeline starts (e.g. at module import time)
+        captures an empty context, silently defeating the purpose.
+
+    Args:
+        func: The callable to wrap.
+
+    Returns:
+        A wrapper that, when called from any thread, executes ``func``
+        within the captured pipeline context.
+
+    Example:
+        >>> @sylo.step("my-step")
+        ... async def my_step(ctx: sylo.Context) -> dict:
+        ...     wrapped_tool = sylo.propagate_context(sync_tool)
+        ...     loop = asyncio.get_event_loop()
+        ...     result = await loop.run_in_executor(None, wrapped_tool, arg1)
+        ...     return {"result": result}
+    """
+    captured_ctx = contextvars.copy_context()
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return captured_ctx.run(func, *args, **kwargs)
+
+    return wrapper
