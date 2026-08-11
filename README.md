@@ -10,6 +10,7 @@
 Add checkpoint recovery, zero-trust permission enforcement, human-in-the-loop approval gates, and immutable audit logs to your existing Python agents in 3 lines of code.
 
 [![PyPI - Version](https://img.shields.io/badge/PyPI-v0.1.4-007ec6.svg?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/sylo-sdk/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/sylo-sdk?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/sylo-sdk)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Tests](https://img.shields.io/badge/Tests-156%20Passed-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
 [![E2E Verified](https://img.shields.io/badge/E2E-36%2F36%20Verified-10B981.svg?style=flat-square)](https://github.com/saketjndl/Sylo)
